@@ -1,0 +1,169 @@
+import prisma from '../../config/database';
+import { AppError } from '../../middleware/errorHandler';
+
+export class AssessmentsService {
+  async create(data: any, userId: string) {
+    const { questions, ...assessmentData } = data;
+
+    const totalScore = questions.reduce((sum: number, q: any) => sum + q.points, 0);
+
+    const assessment = await prisma.assessment.create({
+      data: {
+        ...assessmentData,
+        totalScore,
+        createdById: userId,
+        assessmentQuestions: {
+          create: questions.map((q: any, index: number) => ({
+            questionId: q.questionId,
+            points: q.points,
+            orderIndex: index + 1,
+          })),
+        },
+      },
+      include: {
+        assessmentQuestions: {
+          include: { question: true },
+        },
+      },
+    });
+
+    return assessment;
+  }
+
+  async findAll(userId?: string, role?: string) {
+    const where: any = { isActive: true };
+
+    if (role === 'candidate' && userId) {
+      return prisma.assessment.findMany({
+        where: {
+          ...where,
+          userAssessments: {
+            some: { userId },
+          },
+        },
+        include: {
+          userAssessments: {
+            where: { userId },
+          },
+        },
+      });
+    }
+
+    return prisma.assessment.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findById(id: string) {
+    const assessment = await prisma.assessment.findUnique({
+      where: { id },
+      include: {
+        assessmentQuestions: {
+          include: {
+            question: {
+              select: {
+                id: true,
+                title: true,
+                difficulty: true,
+                timeLimit: true,
+                memoryLimit: true,
+              },
+            },
+          },
+          orderBy: { orderIndex: 'asc' },
+        },
+      },
+    });
+
+    if (!assessment) {
+      throw new AppError(404, 'ASSESSMENT_NOT_FOUND', 'Assessment not found');
+    }
+
+    return assessment;
+  }
+
+  async assignToUsers(assessmentId: string, userIds: string[]) {
+    const assessment = await prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      select: { totalScore: true },
+    });
+
+    if (!assessment) {
+      throw new AppError(404, 'ASSESSMENT_NOT_FOUND', 'Assessment not found');
+    }
+
+    const userAssessments = await prisma.userAssessment.createMany({
+      data: userIds.map(userId => ({
+        userId,
+        assessmentId,
+        maxScore: assessment.totalScore,
+      })),
+      skipDuplicates: true,
+    });
+
+    return userAssessments;
+  }
+
+  async startAssessment(assessmentId: string, userId: string) {
+    const userAssessment = await prisma.userAssessment.findUnique({
+      where: {
+        userId_assessmentId: { userId, assessmentId },
+      },
+      include: {
+        assessment: {
+          include: {
+            assessmentQuestions: {
+              include: {
+                question: {
+                  include: {
+                    testCases: {
+                      where: { isHidden: false },
+                    },
+                  },
+                },
+              },
+              orderBy: { orderIndex: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!userAssessment) {
+      throw new AppError(404, 'ASSESSMENT_NOT_ASSIGNED', 'Assessment not assigned to user');
+    }
+
+    if (userAssessment.status !== 'not_started') {
+      throw new AppError(400, 'ASSESSMENT_ALREADY_STARTED', 'Assessment already started');
+    }
+
+    const updated = await prisma.userAssessment.update({
+      where: { id: userAssessment.id },
+      data: {
+        status: 'in_progress',
+        startedAt: new Date(),
+      },
+      include: {
+        assessment: {
+          include: {
+            assessmentQuestions: {
+              include: {
+                question: {
+                  include: {
+                    testCases: {
+                      where: { isHidden: false },
+                    },
+                  },
+                },
+              },
+              orderBy: { orderIndex: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    return updated;
+  }
+}

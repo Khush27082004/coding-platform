@@ -1,0 +1,52 @@
+import { Response, NextFunction } from 'express';
+import { AuthRequest } from '../../types';
+import { AssessmentsService } from './assessments.service';
+
+const service = new AssessmentsService();
+
+export class AssessmentsController {
+  async create(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const assessment = await service.create(req.body, req.user!.userId);
+      res.status(201).json({ success: true, data: assessment });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAll(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const assessments = await service.findAll(req.user!.userId, req.user!.role);
+      res.json({ success: true, data: assessments });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getById(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const assessment = await service.findById(req.params.id);
+      res.json({ success: true, data: assessment });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async assign(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await service.assignToUsers(req.params.id, req.body.userIds);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async start(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await service.startAssessment(req.params.id, req.user!.userId);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+}
