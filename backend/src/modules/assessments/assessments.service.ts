@@ -135,7 +135,9 @@ export class AssessmentsService {
     }
 
     if (userAssessment.status !== 'not_started') {
-      throw new AppError(400, 'ASSESSMENT_ALREADY_STARTED', 'Assessment already started');
+      // Allow re-opening an already started/completed assessment session.
+      // Frontend can use this for "continue" flows.
+      return userAssessment;
     }
 
     const updated = await prisma.userAssessment.update({
@@ -165,5 +167,54 @@ export class AssessmentsService {
     });
 
     return updated;
+  }
+
+  async getResults(assessmentId: string) {
+    const assessment = await prisma.assessment.findUnique({
+      where: { id: assessmentId },
+      select: {
+        id: true,
+        title: true,
+        passingScore: true,
+        totalScore: true,
+      },
+    });
+
+    if (!assessment) {
+      throw new AppError(404, 'ASSESSMENT_NOT_FOUND', 'Assessment not found');
+    }
+
+    const userAssessments = await prisma.userAssessment.findMany({
+      where: { assessmentId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            fullName: true,
+            email: true,
+          },
+        },
+      },
+      orderBy: [
+        { score: 'desc' },
+        { createdAt: 'asc' },
+      ],
+    });
+
+    return {
+      assessment,
+      rows: userAssessments.map((ua) => ({
+        userAssessmentId: ua.id,
+        userId: ua.userId,
+        candidateName: ua.user.fullName,
+        candidateEmail: ua.user.email,
+        status: ua.status,
+        score: ua.score,
+        maxScore: ua.maxScore || assessment.totalScore || 0,
+        passed: ua.score >= assessment.passingScore,
+        startedAt: ua.startedAt,
+        completedAt: ua.completedAt,
+      })),
+    };
   }
 }

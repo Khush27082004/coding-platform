@@ -1,4 +1,4 @@
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 import { writeFile, unlink, mkdir } from 'fs/promises';
 import { join } from 'path';
@@ -23,6 +23,58 @@ export class ExecutorService {
     }
   }
 
+  private runCommandWithInput(command: string, input: string = ''): Promise<{ stdout: string; stderr: string; code: number | null }> {
+    return new Promise((resolve, reject) => {
+      const child = spawn(command, {
+        shell: true,
+        windowsHide: true,
+      });
+
+      let stdout = '';
+      let stderr = '';
+      let settled = false;
+
+      const timeout = setTimeout(() => {
+        if (!settled) {
+          settled = true;
+          child.kill();
+          reject(new Error('Execution timeout'));
+        }
+      }, env.CODE_TIMEOUT);
+
+      child.stdout.on('data', (data) => {
+        stdout += data.toString();
+      });
+
+      child.stderr.on('data', (data) => {
+        stderr += data.toString();
+      });
+
+      child.on('error', (error) => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeout);
+          reject(error);
+        }
+      });
+
+      child.on('close', (code) => {
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeout);
+          resolve({ stdout, stderr, code });
+        }
+      });
+
+      if (input && child.stdin.writable) {
+        child.stdin.write(input);
+      }
+      if (child.stdin.writable) {
+        child.stdin.end();
+      }
+    });
+  }
+
   async executeCode(language: Language, code: string, input: string = '') {
     const config = languageConfigs[language];
     if (!config) {
@@ -30,7 +82,7 @@ export class ExecutorService {
     }
 
     const executionId = randomUUID();
-    const fileName = `${executionId}${config.extension}`;
+    const fileName = language === 'java' ? 'Solution.java' : `${executionId}${config.extension}`;
     const filePath = join(this.tempDir, fileName);
 
     try {
@@ -39,28 +91,25 @@ export class ExecutorService {
       const startTime = Date.now();
       
       let command: string;
-      if (language === 'cpp') {
+      if (language === 'cpp' || language === 'c') {
         const outputFile = join(this.tempDir, executionId);
-        command = `g++ "${filePath}" -o "${outputFile}" && "${outputFile}"`;
+        const compiler = language === 'cpp' ? 'g++' : 'gcc';
+        command = `${compiler} "${filePath}" -o "${outputFile}" && "${outputFile}"`;
       } else if (language === 'java') {
-        command = `cd "${this.tempDir}" && javac "${fileName}" && java ${fileName.replace('.java', '')}`;
+        command = `cd "${this.tempDir}" && javac "Solution.java" && java Solution`;
       } else {
         command = `${config.command} "${filePath}"`;
       }
 
-      const { stdout, stderr } = await execAsync(command, {
-        timeout: env.CODE_TIMEOUT,
-        maxBuffer: 1024 * 1024,
-        input: input,
-      });
+      const { stdout, stderr, code: exitCode } = await this.runCommandWithInput(command, input);
 
       const executionTime = Date.now() - startTime;
 
       return {
         output: stdout || stderr,
-        error: stderr && !stdout ? stderr : null,
+        error: exitCode && exitCode !== 0 ? stderr || 'Execution failed' : null,
         executionTime,
-        success: !stderr || stdout.length > 0,
+        success: exitCode === 0,
       };
     } catch (error: any) {
       return {
@@ -72,8 +121,10 @@ export class ExecutorService {
     } finally {
       try {
         await unlink(filePath);
-        if (language === 'cpp') {
+        if (language === 'cpp' || language === 'c') {
           await unlink(join(this.tempDir, executionId));
+        } else if (language === 'java') {
+          await unlink(join(this.tempDir, 'Solution.class'));
         }
       } catch (error) {
         // Cleanup failed, ignore
@@ -96,25 +147,22 @@ export class ExecutorService {
 
       let dockerCommand: string;
       if (language === 'python') {
-        dockerCommand = `docker run --rm --name ${containerName} --memory=${env.MAX_MEMORY}m --cpus=0.5 --network=none ${config.image} python -c "import base64; exec(base64.b64decode('${codeBase64}').decode())"`;
+        dockerCommand = `docker run -i --rm --name ${containerName} --memory=${env.MAX_MEMORY}m --cpus=0.5 --network=none ${config.image} python -c "import base64; exec(base64.b64decode('${codeBase64}').decode())"`;
       } else if (language === 'javascript') {
-        dockerCommand = `docker run --rm --name ${containerName} --memory=${env.MAX_MEMORY}m --cpus=0.5 --network=none ${config.image} node -e "eval(Buffer.from('${codeBase64}', 'base64').toString())"`;
+        dockerCommand = `docker run -i --rm --name ${containerName} --memory=${env.MAX_MEMORY}m --cpus=0.5 --network=none ${config.image} node -e "eval(Buffer.from('${codeBase64}', 'base64').toString())"`;
       } else {
         return this.executeCode(language, code, input);
       }
 
       const startTime = Date.now();
-      const { stdout, stderr } = await execAsync(dockerCommand, {
-        timeout: env.CODE_TIMEOUT,
-        maxBuffer: 1024 * 1024,
-      });
+      const { stdout, stderr, code: exitCode } = await this.runCommandWithInput(dockerCommand, inputBase64 ? input : '');
       const executionTime = Date.now() - startTime;
 
       return {
         output: stdout || stderr,
-        error: stderr && !stdout ? stderr : null,
+        error: exitCode && exitCode !== 0 ? stderr || 'Execution failed' : null,
         executionTime,
-        success: !stderr || stdout.length > 0,
+        success: exitCode === 0,
       };
     } catch (error: any) {
       try {

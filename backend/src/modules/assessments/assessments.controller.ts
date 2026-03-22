@@ -32,6 +32,15 @@ export class AssessmentsController {
     }
   }
 
+  async getResults(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const results = await service.getResults(req.params.id);
+      res.json({ success: true, data: results });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async assign(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const result = await service.assignToUsers(req.params.id, req.body.userIds);

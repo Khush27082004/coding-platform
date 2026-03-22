@@ -44,6 +44,7 @@ model User {
   email           String   @unique
   passwordHash    String   @map("password_hash")
   fullName        String   @map("full_name")
+  enrollmentNo    String?  @unique @map("enrollment_no")
   role            UserRole
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -54,6 +55,7 @@ model User {
   createdQuestions    Question[]
   createdAssessments  Assessment[]
   userAssessments     UserAssessment[]
+  practiceSubmissions Submission[]   @relation("PracticeSubmissions")
 
   @@index([email])
   @@index([role])
@@ -78,6 +80,7 @@ model Question {
   starterCodeJavascript String?  @map("starter_code_javascript") @db.Text
   starterCodeJava       String?  @map("starter_code_java") @db.Text
   starterCodeCpp        String?  @map("starter_code_cpp") @db.Text
+  starterCodeC          String?  @map("starter_code_c") @db.Text
   createdById     String     @map("created_by")
   createdAt       DateTime   @default(now()) @map("created_at")
   updatedAt       DateTime   @updatedAt @map("updated_at")
@@ -181,7 +184,8 @@ model UserAssessment {
 
 model Submission {
   id               String           @id @default(uuid())
-  userAssessmentId String           @map("user_assessment_id")
+  userAssessmentId String?          @map("user_assessment_id")
+  practiceUserId   String?          @map("practice_user_id")
   questionId       String           @map("question_id")
   language         String
   code             String           @db.Text
@@ -197,11 +201,13 @@ model Submission {
   evaluatedAt      DateTime?        @map("evaluated_at")
 
   // Relations
-  userAssessment    UserAssessment     @relation(fields: [userAssessmentId], references: [id], onDelete: Cascade)
+  userAssessment    UserAssessment?    @relation(fields: [userAssessmentId], references: [id], onDelete: Cascade)
+  practiceUser      User?              @relation("PracticeSubmissions", fields: [practiceUserId], references: [id], onDelete: Cascade)
   question          Question           @relation(fields: [questionId], references: [id])
   submissionResults SubmissionResult[]
 
   @@index([userAssessmentId])
+  @@index([practiceUserId])
   @@index([questionId])
   @@index([status])
   @@map("submissions")

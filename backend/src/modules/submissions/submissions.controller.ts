@@ -37,10 +37,44 @@ export class SubmissionsController {
     }
   }
 
+  async runAll(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { questionId, language, code } = req.body;
+      const result = await service.runAllTestCases({ questionId, language, code });
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getHistory(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const submissions = await service.getSubmissionHistory(req.user!.userId);
       res.json({ success: true, data: submissions });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getAllSubmissions(_req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const submissions = await service.getAllSubmissions();
+      res.json({ success: true, data: submissions });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async submitPractice(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { questionId, language, code } = req.body;
+      const result = await service.submitPractice({
+        questionId,
+        language,
+        code,
+        userId: req.user!.userId,
+      });
+      res.status(201).json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

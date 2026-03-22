@@ -6,6 +6,79 @@ import { Language } from '../executor/languages.config';
 const executor = new ExecutorService();
 
 export class SubmissionsService {
+  private normalizeOutputText(value: string): string {
+    return String(value ?? '')
+      .replace(/\r\n/g, '\n')
+      .split('\n')
+      .map((line) => line.trimEnd())
+      .join('\n')
+      .trim();
+  }
+
+  private compareOutputs(actualOutput: string, expectedOutput: string): boolean {
+    const actual = this.normalizeOutputText(actualOutput);
+    const expected = this.normalizeOutputText(expectedOutput);
+
+    if (actual === expected) {
+      return true;
+    }
+
+    // Accept formatting differences in list/tuple-style outputs like:
+    // [0,1] vs [0, 1], or (1,2) vs (1, 2)
+    const isListLike = (v: string) =>
+      (v.startsWith('[') && v.endsWith(']')) || (v.startsWith('(') && v.endsWith(')'));
+
+    if (isListLike(actual) && isListLike(expected)) {
+      const compactActual = actual.replace(/\s+/g, '');
+      const compactExpected = expected.replace(/\s+/g, '');
+      return compactActual === compactExpected;
+    }
+
+    return false;
+  }
+
+  private normalizeBracketArrayInput(input: string): string {
+    // Convert "[1,2,3]\n9" -> "1 2 3\n9" for compatibility
+    return input
+      .replace(/\[([^\]]+)\]/g, (_match, values) =>
+        String(values)
+          .split(',')
+          .map((v) => v.trim())
+          .join(' ')
+      );
+  }
+
+  private shouldRetryWithNormalizedInput(language: Language, input: string, error?: string | null): boolean {
+    if (language !== 'python') return false;
+    if (!error) return false;
+    if (!input.includes('[') || !input.includes(']')) return false;
+
+    const normalizedError = error.toLowerCase();
+    return (
+      normalizedError.includes('invalid literal for int') ||
+      normalizedError.includes('valueerror')
+    );
+  }
+
+  private async executeWithInputCompatibility(language: Language, code: string, input: string) {
+    const firstTry = await executor.executeWithDocker(language, code, input);
+    if (!this.shouldRetryWithNormalizedInput(language, input, firstTry.error)) {
+      return firstTry;
+    }
+
+    const normalizedInput = this.normalizeBracketArrayInput(input);
+    if (normalizedInput === input) {
+      return firstTry;
+    }
+
+    const secondTry = await executor.executeWithDocker(language, code, normalizedInput);
+    if (secondTry.success) {
+      return secondTry;
+    }
+
+    return firstTry;
+  }
+
   async submit(data: {
     userAssessmentId: string;
     questionId: string;
@@ -63,9 +136,9 @@ export class SubmissionsService {
       const results = [];
 
       for (const testCase of testCases) {
-        const result = await executor.executeWithDocker(language, code, testCase.input);
+        const result = await this.executeWithInputCompatibility(language, code, testCase.input);
 
-        const passed = result.success && result.output.trim() === testCase.expectedOutput.trim();
+        const passed = result.success && this.compareOutputs(result.output, testCase.expectedOutput);
         const pointsEarned = passed ? testCase.points : 0;
 
         if (passed) passedTests++;
@@ -145,6 +218,49 @@ export class SubmissionsService {
       where: { id: submission.userAssessmentId },
       data: { score: totalScore },
     });
+
+    await this.markAssessmentCompletedIfEligible(submission.userAssessmentId);
+  }
+
+  private async markAssessmentCompletedIfEligible(userAssessmentId: string) {
+    const userAssessment = await prisma.userAssessment.findUnique({
+      where: { id: userAssessmentId },
+      select: {
+        id: true,
+        status: true,
+        assessmentId: true,
+      },
+    });
+
+    if (!userAssessment || userAssessment.status === 'completed') {
+      return;
+    }
+
+    const [questionCount, answeredQuestions] = await Promise.all([
+      prisma.assessmentQuestion.count({
+        where: { assessmentId: userAssessment.assessmentId },
+      }),
+      prisma.submission.findMany({
+        where: {
+          userAssessmentId,
+          status: 'completed',
+        },
+        distinct: ['questionId'],
+        select: {
+          questionId: true,
+        },
+      }),
+    ]);
+
+    if (questionCount > 0 && answeredQuestions.length >= questionCount) {
+      await prisma.userAssessment.update({
+        where: { id: userAssessmentId },
+        data: {
+          status: 'completed',
+          completedAt: new Date(),
+        },
+      });
+    }
   }
 
   async getSubmission(id: string, userId: string, role: string) {
@@ -179,31 +295,227 @@ export class SubmissionsService {
   }
 
   async getSubmissionHistory(userId: string) {
+    // Fetch both assessment submissions and practice submissions for this user
     const submissions = await prisma.submission.findMany({
       where: {
-        userAssessment: {
-          userId,
-        },
+        OR: [
+          // Assessment submissions linked via userAssessment
+          {
+            userAssessment: {
+              userId,
+            },
+          },
+          // Practice submissions saved directly with userId
+          {
+            practiceUserId: userId,
+          },
+        ],
       },
       include: {
         question: {
           select: {
             id: true,
             title: true,
+            difficulty: true,
+          },
+        },
+        userAssessment: {
+          select: {
+            assessmentId: true,
+            assessment: {
+              select: { title: true },
+            },
           },
         },
       },
       orderBy: {
         submittedAt: 'desc',
       },
-      take: 50,
+      take: 100,
     });
 
     return submissions;
   }
 
+  // Admin endpoint to see all submissions
+  async getAllSubmissions() {
+    const submissions = await prisma.submission.findMany({
+      include: {
+        question: {
+          select: {
+            title: true,
+          },
+        },
+        userAssessment: {
+          select: {
+            user: { select: { fullName: true, email: true, enrollmentNo: true } },
+            assessment: { select: { title: true } },
+          },
+        },
+        practiceUser: {
+          select: { fullName: true, email: true, enrollmentNo: true },
+        },
+      },
+      orderBy: { submittedAt: 'desc' },
+      take: 200, // Limit for performance
+    });
+
+    return submissions.map(sub => {
+      const isPractice = !!sub.practiceUserId;
+      const candidateName = isPractice ? sub.practiceUser?.fullName : sub.userAssessment?.user.fullName;
+      const candidateEmail = isPractice ? sub.practiceUser?.email : sub.userAssessment?.user.email;
+      const enrollmentNo = isPractice ? sub.practiceUser?.enrollmentNo : sub.userAssessment?.user.enrollmentNo;
+      const assessmentTitle = isPractice ? 'Practice Mode' : sub.userAssessment?.assessment.title || 'Unknown';
+      
+      return {
+        id: sub.id,
+        candidateName: candidateName || 'Unknown User',
+        candidateEmail: candidateEmail || '',
+        enrollmentNo: enrollmentNo || 'N/A',
+        assessmentTitle,
+        questionTitle: sub.question.title,
+        status: sub.status,
+        score: sub.score,
+        maxScore: sub.maxScore,
+        passedTests: sub.passedTests,
+        totalTests: sub.totalTests,
+        passed: sub.score > 0 && sub.score === sub.maxScore, // Treat perfect score as "passed" for raw submissions
+        submittedAt: sub.submittedAt,
+        language: sub.language,
+        isPractice
+      };
+    });
+  }
+
   async runCode(language: string, code: string, input: string) {
-    const result = await executor.executeWithDocker(language as Language, code, input);
+    const result = await this.executeWithInputCompatibility(language as Language, code, input);
     return result;
+  }
+
+  async runAllTestCases(data: { questionId: string; language: string; code: string }) {
+    const question = await prisma.question.findUnique({
+      where: { id: data.questionId },
+      include: { testCases: true },
+    });
+
+    if (!question) {
+      throw new AppError(404, 'QUESTION_NOT_FOUND', 'Question not found');
+    }
+
+    const testCases = question.testCases;
+    let totalScore = 0;
+    let passedTests = 0;
+    const results: any[] = [];
+
+    for (const testCase of testCases) {
+      const execResult = await this.executeWithInputCompatibility(data.language as Language, data.code, testCase.input);
+      const passed = execResult.success && this.compareOutputs(execResult.output, testCase.expectedOutput);
+      const pointsEarned = passed ? testCase.points : 0;
+
+      if (passed) passedTests += 1;
+      totalScore += pointsEarned;
+
+      results.push({
+        testCaseId: testCase.id,
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput,
+        actualOutput: execResult.output,
+        status: execResult.error ? 'error' : passed ? 'passed' : 'failed',
+        pointsEarned,
+        pointsAvailable: testCase.points,
+        errorMessage: execResult.error,
+      });
+    }
+
+    return {
+      questionId: question.id,
+      status: 'completed',
+      passedTests,
+      totalTests: testCases.length,
+      score: totalScore,
+      maxScore: testCases.reduce((sum, tc) => sum + tc.points, 0),
+      submissionResults: results,
+    };
+  }
+
+  async submitPractice(data: { questionId: string; language: string; code: string; userId: string }) {
+    const question = await prisma.question.findUnique({
+      where: { id: data.questionId },
+      include: { testCases: true },
+    });
+
+    if (!question) {
+      throw new AppError(404, 'QUESTION_NOT_FOUND', 'Question not found');
+    }
+
+    const maxScore = question.testCases.reduce((sum, tc) => sum + tc.points, 0);
+
+    // Create practice submission record
+    const submission = await prisma.submission.create({
+      data: {
+        questionId: data.questionId,
+        language: data.language,
+        code: data.code,
+        status: 'pending',
+        totalTests: question.testCases.length,
+        maxScore,
+        practiceUserId: data.userId,
+      },
+    });
+
+    // Evaluate synchronously
+    let totalScore = 0;
+    let passedTests = 0;
+    const results: any[] = [];
+
+    for (const testCase of question.testCases) {
+      const execResult = await this.executeWithInputCompatibility(data.language as Language, data.code, testCase.input);
+      const passed = execResult.success && this.compareOutputs(execResult.output, testCase.expectedOutput);
+      const pointsEarned = passed ? testCase.points : 0;
+
+      if (passed) passedTests += 1;
+      totalScore += pointsEarned;
+
+      const submissionResult = await prisma.submissionResult.create({
+        data: {
+          submissionId: submission.id,
+          testCaseId: testCase.id,
+          status: execResult.error ? 'error' : passed ? 'passed' : 'failed',
+          actualOutput: execResult.output,
+          executionTime: execResult.executionTime,
+          errorMessage: execResult.error,
+          pointsEarned,
+        },
+      });
+
+      results.push({
+        ...submissionResult,
+        input: testCase.input,
+        expectedOutput: testCase.expectedOutput,
+        pointsAvailable: testCase.points,
+      });
+    }
+
+    // Update submission with final scores
+    const finalSubmission = await prisma.submission.update({
+      where: { id: submission.id },
+      data: {
+        status: 'completed',
+        score: totalScore,
+        passedTests,
+        evaluatedAt: new Date(),
+      },
+    });
+
+    return {
+      ...finalSubmission,
+      questionId: question.id,
+      status: 'completed',
+      passedTests,
+      totalTests: question.testCases.length,
+      score: totalScore,
+      maxScore,
+      submissionResults: results,
+    };
   }
 }

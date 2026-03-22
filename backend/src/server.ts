@@ -23,10 +23,19 @@ const startServer = async () => {
     }
 
     // Start server
-    app.listen(env.PORT, () => {
+    const server = app.listen(env.PORT, () => {
       logger.info(`🚀 Server running on port ${env.PORT}`);
       logger.info(`📝 Environment: ${env.NODE_ENV}`);
       logger.info(`🔗 API: http://localhost:${env.PORT}/api/v1`);
+    });
+
+    server.on('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        logger.error(`Port ${env.PORT} is already in use. Please stop the process using that port or choose another port.`);
+        process.exit(1);
+      }
+      logger.error('Server error:', err);
+      process.exit(1);
     });
   } catch (error) {
     logger.error('Failed to start server:', error);

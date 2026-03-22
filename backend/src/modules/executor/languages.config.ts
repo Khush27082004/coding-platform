@@ -43,6 +43,18 @@ int main() {
     return 0;
 }`,
   },
+  c: {
+    image: 'gcc:latest',
+    extension: '.c',
+    command: 'gcc',
+    compileCommand: 'gcc -o solution solution.c && ./solution',
+    template: `#include <stdio.h>
+
+int main() {
+    // Write your code here
+    return 0;
+}`,
+  },
 };
 
 export type Language = keyof typeof languageConfigs;

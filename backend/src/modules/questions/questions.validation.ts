@@ -18,6 +18,7 @@ export const createQuestionSchema = z.object({
     starterCodeJavascript: z.string().optional(),
     starterCodeJava: z.string().optional(),
     starterCodeCpp: z.string().optional(),
+    starterCodeC: z.string().optional(),
     testCases: z.array(z.object({
       input: z.string(),
       expectedOutput: z.string(),
@@ -45,6 +46,7 @@ export const updateQuestionSchema = z.object({
     starterCodeJavascript: z.string().optional(),
     starterCodeJava: z.string().optional(),
     starterCodeCpp: z.string().optional(),
+    starterCodeC: z.string().optional(),
     isActive: z.boolean().optional(),
   }),
 });
