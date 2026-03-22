@@ -1,10 +1,10 @@
 import { exec } from 'child_process';
 import { promisify } from 'util';
-import { writeFile, unlink, mkdir } from 'fs/promises';
+import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { randomUUID } from 'crypto';
 import { env } from '../../config/env';
-import { getLanguageConfig } from './languages.config';
+import { getLanguageConfig, Language } from './languages.config';
 import { logger } from '../../utils/logger';
 
 const execAsync = promisify(exec);
@@ -35,7 +35,7 @@ export class DockerService {
 
   async executeCode(
     code: string,
-    language: string,
+    language: Language | string,
     input: string = '',
     timeLimit?: number
   ): Promise<ExecutionResult> {
@@ -126,7 +126,6 @@ export class DockerService {
   private buildDockerCommand(
     config: any,
     workDir: string,
-    fileName: string,
     timeout: number
   ): string {
     const timeoutSeconds = Math.ceil(timeout / 1000);

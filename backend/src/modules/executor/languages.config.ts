@@ -58,3 +58,11 @@ int main() {
 };
 
 export type Language = keyof typeof languageConfigs;
+
+export const getLanguageConfig = (language: string) => {
+  const config = (languageConfigs as any)[language.toLowerCase()];
+  if (!config) {
+    throw new Error(`Unsupported language: ${language}`);
+  }
+  return config;
+};

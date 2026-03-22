@@ -206,9 +206,10 @@ export class SubmissionsService {
 
     const bestScores = new Map<string, number>();
     allSubmissions.forEach(sub => {
-      const current = bestScores.get(sub.questionId) || 0;
+      const qId = sub.questionId;
+      const current = bestScores.get(qId) || 0;
       if (sub.score > current) {
-        bestScores.set(sub.questionId, sub.score);
+        bestScores.set(qId, sub.score);
       }
     });
 
@@ -280,7 +281,7 @@ export class SubmissionsService {
       throw new AppError(404, 'SUBMISSION_NOT_FOUND', 'Submission not found');
     }
 
-    if (role !== 'admin' && submission.userAssessment.userId !== userId) {
+    if (role !== 'admin' && submission.userAssessment?.userId !== userId) {
       throw new AppError(403, 'FORBIDDEN', 'Access denied');
     }
 
