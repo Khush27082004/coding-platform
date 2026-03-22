@@ -215,6 +215,8 @@ export class SubmissionsService {
 
     const totalScore = Array.from(bestScores.values()).reduce((sum, score) => sum + score, 0);
 
+    if (!submission.userAssessmentId) return;
+
     await prisma.userAssessment.update({
       where: { id: submission.userAssessmentId },
       data: { score: totalScore },
