@@ -348,12 +348,12 @@ export class SubmissionsService {
         },
         userAssessment: {
           select: {
-            user: { select: { fullName: true, email: true, enrollmentNo: true } },
+            user: { select: { fullName: true, email: true } },
             assessment: { select: { title: true } },
           },
         },
         practiceUser: {
-          select: { fullName: true, email: true, enrollmentNo: true },
+          select: { fullName: true, email: true },
         },
       },
       orderBy: { submittedAt: 'desc' },
@@ -364,14 +364,12 @@ export class SubmissionsService {
       const isPractice = !!sub.practiceUserId;
       const candidateName = isPractice ? sub.practiceUser?.fullName : sub.userAssessment?.user.fullName;
       const candidateEmail = isPractice ? sub.practiceUser?.email : sub.userAssessment?.user.email;
-      const enrollmentNo = isPractice ? sub.practiceUser?.enrollmentNo : sub.userAssessment?.user.enrollmentNo;
       const assessmentTitle = isPractice ? 'Practice Mode' : sub.userAssessment?.assessment.title || 'Unknown';
       
       return {
         id: sub.id,
         candidateName: candidateName || 'Unknown User',
         candidateEmail: candidateEmail || '',
-        enrollmentNo: enrollmentNo || 'N/A',
         assessmentTitle,
         questionTitle: sub.question.title,
         status: sub.status,

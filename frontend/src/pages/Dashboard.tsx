@@ -1,71 +1,175 @@
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import api from '../services/api';
+import { AppShell } from '../components/AppShell';
+
+type AssignedAssessment = {
+  id: string;
+  title: string;
+  description?: string;
+  duration: number;
+  totalScore?: number;
+  userAssessments?: { status: string; score?: number }[];
+};
 
 export const Dashboard = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [assigned, setAssigned] = useState<AssignedAssessment[]>([]);
+  const [loadingTests, setLoadingTests] = useState(user?.role === 'candidate');
+
+  useEffect(() => {
+    if (user?.role !== 'candidate') return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api.get('/assessments');
+        if (!cancelled) setAssigned(res.data.data || []);
+      } catch {
+        if (!cancelled) setAssigned([]);
+      } finally {
+        if (!cancelled) setLoadingTests(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.role]);
+
+  if (user?.role === 'admin') {
+    return (
+      <AppShell
+        title="Admin workspace"
+        subtitle="Manage your question bank, scheduled tests, and candidate outcomes."
+      >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <button
+            type="button"
+            onClick={() => navigate('/admin/questions')}
+            className="group text-left rounded-xl border border-slate-800 bg-slate-900/50 p-6 hover:border-emerald-500/40 hover:bg-slate-900 transition-all"
+          >
+            <div className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">Content</div>
+            <h2 className="text-lg font-semibold text-white group-hover:text-emerald-300 transition-colors">
+              Question bank
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">Create, edit, and curate coding problems.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/assessments')}
+            className="group text-left rounded-xl border border-slate-800 bg-slate-900/50 p-6 hover:border-emerald-500/40 hover:bg-slate-900 transition-all"
+          >
+            <div className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">Delivery</div>
+            <h2 className="text-lg font-semibold text-white group-hover:text-emerald-300 transition-colors">
+              Tests &amp; results
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">View assessments and per-candidate scores.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/analytics')}
+            className="group text-left rounded-xl border border-slate-800 bg-slate-900/50 p-6 hover:border-emerald-500/40 hover:bg-slate-900 transition-all"
+          >
+            <div className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">Insights</div>
+            <h2 className="text-lg font-semibold text-white group-hover:text-emerald-300 transition-colors">
+              Overview
+            </h2>
+            <p className="mt-2 text-sm text-slate-400">High-level stats and combined scoreboard.</p>
+          </button>
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Welcome, {user?.fullName}!</h1>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {user?.role === 'admin' ? (
-          <>
-            <div
-              onClick={() => navigate('/admin/questions')}
-              className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition transform hover:-translate-y-1"
-            >
-              <div className="text-4xl mb-3">📝</div>
-              <h2 className="text-xl font-bold mb-2">Questions</h2>
-              <p className="text-blue-100">Create and manage coding problems</p>
+    <AppShell
+      title={`Welcome, ${user?.fullName?.split(' ')[0] || 'there'}`}
+      subtitle="Your assigned tests and practice tools in one place."
+    >
+      <div className="space-y-10">
+        <section>
+          <div className="flex items-center justify-between gap-4 mb-4">
+            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Assigned tests</h2>
+          </div>
+          {loadingTests ? (
+            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-8 text-center text-slate-500 text-sm">
+              Loading your tests…
             </div>
-            <div
-              onClick={() => navigate('/admin/assessments')}
-              className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition transform hover:-translate-y-1"
-            >
-              <div className="text-4xl mb-3">📋</div>
-              <h2 className="text-xl font-bold mb-2">Assessments</h2>
-              <p className="text-green-100">Create and manage tests</p>
+          ) : assigned.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/30 p-8 text-center">
+              <p className="text-slate-400 text-sm">No tests assigned yet.</p>
+              <p className="text-slate-600 text-xs mt-2">When an admin assigns you an assessment, it will appear here.</p>
             </div>
-            <div
-              onClick={() => navigate('/admin/analytics')}
-              className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition transform hover:-translate-y-1"
-            >
-              <div className="text-4xl mb-3">📊</div>
-              <h2 className="text-xl font-bold mb-2">Analytics</h2>
-              <p className="text-purple-100">View performance metrics</p>
+          ) : (
+            <div className="grid gap-3 sm:grid-cols-2">
+              {assigned.map((a) => {
+                const ua = a.userAssessments?.[0];
+                const rawStatus = ua?.status || 'not_started';
+                const statusLabel = rawStatus.replace('_', ' ');
+                const isCompleted = rawStatus === 'completed';
+                return (
+                  <div
+                    key={a.id}
+                    className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 flex flex-col"
+                  >
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-white">{a.title}</h3>
+                      {a.description ? (
+                        <p className="mt-1 text-sm text-slate-400 line-clamp-2">{a.description}</p>
+                      ) : null}
+                      <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
+                        <span>{a.duration} min</span>
+                        {a.totalScore != null && <span>{a.totalScore} pts</span>}
+                        <span className="capitalize">{statusLabel}</span>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isCompleted) navigate('/submissions');
+                        else if (rawStatus === 'not_started') navigate(`/assessment/${a.id}/start`);
+                        else navigate(`/assessment/${a.id}/continue`);
+                      }}
+                      className={`mt-4 w-full sm:w-auto self-start rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                        isCompleted
+                          ? 'border border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700'
+                          : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                      }`}
+                    >
+                      {isCompleted ? 'View submissions' : rawStatus === 'not_started' ? 'Start test' : 'Continue test'}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          </>
-        ) : (
-          <>
-            <div
-              onClick={() => navigate('/assessments')}
-              className="bg-gradient-to-br from-blue-500 to-blue-600 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition transform hover:-translate-y-1"
-            >
-              <div className="text-4xl mb-3">📝</div>
-              <h2 className="text-xl font-bold mb-2">My Assessments</h2>
-              <p className="text-blue-100">View and take assigned tests</p>
-            </div>
-            <div
+          )}
+        </section>
+
+        <section>
+          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4">More</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <button
+              type="button"
               onClick={() => navigate('/practice')}
-              className="bg-gradient-to-br from-green-500 to-green-600 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition transform hover:-translate-y-1"
+              className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-left hover:border-slate-600 transition-colors"
             >
-              <div className="text-4xl mb-3">💻</div>
-              <h2 className="text-xl font-bold mb-2">Practice</h2>
-              <p className="text-green-100">Solve coding problems</p>
-            </div>
-            <div
+              <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Practice</span>
+              <h3 className="mt-2 font-semibold text-white">Problem set</h3>
+              <p className="mt-1 text-sm text-slate-400">Sharpen skills outside of graded tests.</p>
+            </button>
+            <button
+              type="button"
               onClick={() => navigate('/submissions')}
-              className="bg-gradient-to-br from-purple-500 to-purple-600 text-white p-6 rounded-lg shadow-lg cursor-pointer hover:shadow-xl transition transform hover:-translate-y-1"
+              className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-left hover:border-slate-600 transition-colors"
             >
-              <div className="text-4xl mb-3">📊</div>
-              <h2 className="text-xl font-bold mb-2">Submissions</h2>
-              <p className="text-purple-100">View your submission history</p>
-            </div>
-          </>
-        )}
+              <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">History</span>
+              <h3 className="mt-2 font-semibold text-white">Submissions</h3>
+              <p className="mt-1 text-sm text-slate-400">Review past graded attempts.</p>
+            </button>
+          </div>
+        </section>
       </div>
-    </div>
+    </AppShell>
   );
 };

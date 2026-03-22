@@ -17,7 +17,7 @@ export const generalLimiter = rateLimit({
 
 export const authLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 5,
+  max: 100,
   message: {
     success: false,
     error: {

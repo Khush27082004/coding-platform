@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
+import { AppShell } from '../../components/AppShell';
 
 export const Submissions = () => {
   const [submissions, setSubmissions] = useState<any[]>([]);
@@ -20,69 +21,71 @@ export const Submissions = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusStyle = (status: string) => {
     switch (status) {
-      case 'completed': return 'bg-green-100 text-green-800';
-      case 'running': return 'bg-blue-100 text-blue-800';
-      case 'error': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'completed':
+        return 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+      case 'running':
+        return 'bg-sky-500/15 text-sky-400 border border-sky-500/30';
+      case 'error':
+        return 'bg-rose-500/15 text-rose-400 border border-rose-500/30';
+      default:
+        return 'bg-slate-700 text-slate-300 border border-slate-600';
     }
   };
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loading) {
+    return (
+      <AppShell title="Submissions" subtitle="Loading…">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center text-slate-500 text-sm">
+          Loading history…
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">My Submissions</h1>
-
-      <div className="bg-white rounded-lg shadow overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Question</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Language</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Score</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Submitted</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {submissions.map((sub) => (
-              <tr key={sub.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm font-medium text-gray-900">{sub.question?.title || 'Unknown'}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{sub.language}</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 py-1 text-xs rounded ${getStatusColor(sub.status)}`}>
-                    {sub.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-900">{sub.score}/{sub.maxScore}</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">{sub.executionTime}ms</span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className="text-sm text-gray-500">
-                    {new Date(sub.submittedAt).toLocaleString()}
-                  </span>
-                </td>
+    <AppShell title="Submission history" subtitle="Graded attempts from assessments and practice." wide>
+      {submissions.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/30 py-16 text-center text-slate-500 text-sm">
+          No submissions yet.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-xl border border-slate-800">
+          <table className="min-w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-800 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
+                <th className="px-4 py-3">Question</th>
+                <th className="px-4 py-3">Language</th>
+                <th className="px-4 py-3">Status</th>
+                <th className="px-4 py-3">Score</th>
+                <th className="px-4 py-3">Time</th>
+                <th className="px-4 py-3">Submitted</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {submissions.length === 0 && (
-        <div className="text-center text-gray-500 mt-8">
-          No submissions yet. Start solving problems!
+            </thead>
+            <tbody className="divide-y divide-slate-800">
+              {submissions.map((sub) => (
+                <tr key={sub.id} className="text-slate-300 hover:bg-slate-900/40">
+                  <td className="px-4 py-3 font-medium text-white">{sub.question?.title || '—'}</td>
+                  <td className="px-4 py-3 text-slate-400">{sub.language}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-flex rounded-md px-2 py-0.5 text-xs font-medium capitalize ${getStatusStyle(sub.status)}`}>
+                      {sub.status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 tabular-nums">
+                    {sub.score}/{sub.maxScore}
+                  </td>
+                  <td className="px-4 py-3 text-slate-500">{sub.executionTime != null ? `${sub.executionTime} ms` : '—'}</td>
+                  <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">
+                    {sub.submittedAt ? new Date(sub.submittedAt).toLocaleString() : '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
-    </div>
+    </AppShell>
   );
 };

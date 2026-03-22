@@ -1,8 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import api from '../../services/api';
 import { Question } from '../../types';
+import { AppShell } from '../../components/AppShell';
 
 export const Questions = () => {
+  const navigate = useNavigate();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -26,70 +29,97 @@ export const Questions = () => {
     try {
       await api.delete(`/questions/${id}`);
       fetchQuestions();
-    } catch (error) {
+    } catch {
       alert('Failed to delete question');
     }
   };
 
-  if (loading) return <div className="p-6">Loading...</div>;
+  if (loading) {
+    return (
+      <AppShell title="Question bank" subtitle="Loading…">
+        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center text-slate-500 text-sm">
+          Loading questions…
+        </div>
+      </AppShell>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold">Questions</h1>
+    <AppShell
+      title="Question bank"
+      subtitle="Problems used in practice and in assessments."
+      actions={
         <button
-          onClick={() => window.location.href = '/admin/questions/create'}
-          className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
+          type="button"
+          onClick={() => navigate('/admin/questions/create')}
+          className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-500 transition-colors"
         >
-          Create Question
+          New question
         </button>
-      </div>
-
-      <div className="grid gap-4">
+      }
+    >
+      <div className="space-y-3">
         {questions.map((q) => (
-          <div key={q.id} className="bg-white p-4 rounded-lg shadow">
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-xl font-bold">{q.title}</h3>
-                <div className="flex gap-2 mt-2">
-                  <span className={`px-2 py-1 rounded text-sm ${
-                    q.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
-                    q.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-red-100 text-red-800'
-                  }`}>
-                    {q.difficulty}
+          <div
+            key={q.id}
+            className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4"
+          >
+            <div className="min-w-0">
+              <h3 className="text-lg font-semibold text-white">{q.title}</h3>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <span
+                  className={`rounded-md px-2 py-0.5 text-xs font-semibold uppercase tracking-wide ${
+                    q.difficulty === 'easy'
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                      : q.difficulty === 'medium'
+                        ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
+                        : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                  }`}
+                >
+                  {q.difficulty}
+                </span>
+                {q.tags.map((tag) => (
+                  <span
+                    key={tag}
+                    className="rounded-md border border-slate-700 bg-slate-800/80 px-2 py-0.5 text-xs text-slate-300"
+                  >
+                    {tag}
                   </span>
-                  {q.tags.map(tag => (
-                    <span key={tag} className="px-2 py-1 bg-gray-100 rounded text-sm">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
+                ))}
               </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => window.location.href = `/admin/questions/${q.id}/edit`}
-                  className="text-blue-600 hover:underline"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => deleteQuestion(q.id)}
-                  className="text-red-600 hover:underline"
-                >
-                  Delete
-                </button>
-              </div>
+            </div>
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => navigate(`/admin/questions/${q.id}/edit`)}
+                className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm font-medium text-slate-200 hover:bg-slate-800"
+              >
+                Edit
+              </button>
+              <button
+                type="button"
+                onClick={() => deleteQuestion(q.id)}
+                className="rounded-lg border border-rose-500/40 px-3 py-1.5 text-sm font-medium text-rose-300 hover:bg-rose-950/50"
+              >
+                Delete
+              </button>
             </div>
           </div>
         ))}
       </div>
 
       {questions.length === 0 && (
-        <div className="text-center text-gray-500 mt-8">
-          No questions yet. Create your first question!
+        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/30 py-16 text-center">
+          <p className="text-slate-400 text-sm">No questions yet.</p>
+          <button
+            type="button"
+            onClick={() => navigate('/admin/questions/create')}
+            className="mt-4 text-sm font-semibold text-emerald-400 hover:text-emerald-300"
+          >
+            Create your first question →
+          </button>
         </div>
       )}
-    </div>
+    </AppShell>
   );
 };

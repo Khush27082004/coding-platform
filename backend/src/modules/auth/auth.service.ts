@@ -8,7 +8,6 @@ export class AuthService {
     email: string;
     password: string;
     fullName: string;
-    enrollmentNo?: string;
     role: 'admin' | 'candidate';
   }) {
     // Check if user exists
@@ -29,14 +28,12 @@ export class AuthService {
         email: data.email,
         passwordHash,
         fullName: data.fullName,
-        enrollmentNo: data.enrollmentNo || null,
         role: data.role,
       },
       select: {
         id: true,
         email: true,
         fullName: true,
-        enrollmentNo: true,
         role: true,
         createdAt: true,
       },
@@ -91,7 +88,6 @@ export class AuthService {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
-        enrollmentNo: user.enrollmentNo,
         role: user.role,
       },
       token,
@@ -105,7 +101,6 @@ export class AuthService {
         id: true,
         email: true,
         fullName: true,
-        enrollmentNo: true,
         role: true,
         createdAt: true,
         lastLogin: true,

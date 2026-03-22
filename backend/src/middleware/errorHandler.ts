@@ -38,7 +38,9 @@ export const errorHandler = (
       success: false,
       error: {
         code: 'DATABASE_ERROR',
-        message: 'Database operation failed',
+        message: process.env.NODE_ENV === 'development' 
+          ? `Database operation failed: ${err.message}`
+          : 'Database operation failed',
       },
     });
   }

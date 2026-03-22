@@ -11,6 +11,7 @@ export const TakeTest = () => {
   const [language, setLanguage] = useState('python');
   const [output, setOutput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     startAssessment();
@@ -58,22 +59,50 @@ export const TakeTest = () => {
   };
 
   const submitCode = async () => {
-    if (!confirm('Submit this solution?')) return;
-    
-    setLoading(true);
+    setSubmitting(true);
+    setOutput('Submitting solution...');
     try {
       const question = assessment.assessment.assessmentQuestions[currentQuestion].question;
-      await api.post('/submissions', {
+      const submitRes = await api.post('/submissions', {
         userAssessmentId: assessment.id,
         questionId: question.id,
         language,
         code,
       });
-      alert('Code submitted successfully!');
+
+      const submissionId = submitRes.data.data.id;
+      let attempts = 0;
+      let isCompleted = false;
+
+      while (attempts < 30 && !isCompleted) {
+        attempts += 1;
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+        const statusRes = await api.get(`/submissions/${submissionId}`);
+        if (statusRes.data.data.status === 'completed') {
+          isCompleted = true;
+          const evaluated = statusRes.data.data;
+          setOutput(`Submitted and evaluated. Passed ${evaluated.passedTests}/${evaluated.totalTests}, score ${evaluated.score}/${evaluated.maxScore}.`);
+        }
+      }
+
+      if (!isCompleted) {
+        setOutput('Submission accepted. Evaluation is taking longer than expected. Please check submissions.');
+      }
+
+      // Check if the full assessment is completed and show final message
+      const assessmentsRes = await api.get('/assessments');
+      const currentAssessment = (assessmentsRes.data.data || []).find((a: any) => a.id === id);
+      const ua = currentAssessment?.userAssessments?.[0];
+      if (ua?.status === 'completed') {
+        setOutput(`✅ Test finished. Final Score: ${ua.score}/${ua.maxScore}`);
+      } else {
+        setOutput((prev) => `${prev}\n✅ Solution submitted and evaluated. Continue with remaining questions.`);
+      }
     } catch (error: any) {
-      alert(error.response?.data?.error?.message || 'Failed to submit');
+      const message = error.response?.data?.error?.message || 'Failed to submit';
+      setOutput(`❌ ${message}`);
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
 
@@ -208,10 +237,10 @@ export const TakeTest = () => {
                 </button>
                 <button
                   onClick={submitCode}
-                  disabled={loading}
+                  disabled={loading || submitting}
                   className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white px-6 py-2 rounded font-semibold transition flex items-center gap-2"
                 >
-                  ✅ Submit
+                  {submitting ? '⏳ Submitting...' : '✅ Submit'}
                 </button>
               </div>
             </div>
