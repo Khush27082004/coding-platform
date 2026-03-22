@@ -9,9 +9,9 @@ export class Judge0Service {
   private baseUrl: string;
 
   constructor() {
-    this.apiKey = env.JUDGE0_API_KEY || '';
-    this.host = env.JUDGE0_HOST || 'ce.judge0.com';
-    this.baseUrl = this.host.startsWith('http') ? this.host : `https://${this.host}`;
+    this.apiKey = ''; // Force empty to ignore RapidAPI headers
+    this.host = 'ce.judge0.com';
+    this.baseUrl = 'https://ce.judge0.com';
   }
 
   async executeCode(
