@@ -1,57 +1,72 @@
 export const languageConfigs = {
   python: {
     image: 'python:3.11-slim',
-    extension: '.py',
-    command: 'python',
-    template: `def solution():
-    # Write your code here
-    pass
+    fileExtension: 'py',
+    compileCommand: '',
+    runCommand: 'python3 solution.py',
+    template: `def lengthOfLastWord(s):
+    s = s.strip()
+    length = 0
+    for i in range(len(s) - 1, -1, -1):
+        if s[i] == ' ':
+            break
+        length += 1
+    return length
 
 if __name__ == "__main__":
-    solution()`,
+    s = input()
+    print(lengthOfLastWord(s))`,
   },
   javascript: {
     image: 'node:20-slim',
-    extension: '.js',
-    command: 'node',
-    template: `function solution() {
-    // Write your code here
-}
-
-solution();`,
+    fileExtension: 'js',
+    compileCommand: '',
+    runCommand: 'node solution.js',
+    template: `const fs = require('fs');
+const input = fs.readFileSync(0, 'utf8').trim();
+console.log(input);`,
   },
   java: {
     image: 'openjdk:17-slim',
-    extension: '.java',
-    command: 'java',
-    template: `public class Solution {
+    fileExtension: 'java',
+    compileCommand: 'javac Solution.java',
+    runCommand: 'java Solution',
+    template: `import java.util.Scanner;
+public class Solution {
     public static void main(String[] args) {
-        // Write your code here
+        Scanner sc = new Scanner(System.in);
+        if (sc.hasNextLine()) {
+            System.out.println(sc.nextLine());
+        }
     }
 }`,
   },
   cpp: {
     image: 'gcc:latest',
-    extension: '.cpp',
-    command: 'g++',
-    compileCommand: 'g++ -o solution solution.cpp && ./solution',
+    fileExtension: 'cpp',
+    compileCommand: 'g++ -o solution solution.cpp',
+    runCommand: './solution',
     template: `#include <iostream>
+#include <string>
 using namespace std;
-
 int main() {
-    // Write your code here
+    string s;
+    getline(cin, s);
+    cout << s << endl;
     return 0;
 }`,
   },
   c: {
     image: 'gcc:latest',
-    extension: '.c',
-    command: 'gcc',
-    compileCommand: 'gcc -o solution solution.c && ./solution',
+    fileExtension: 'c',
+    compileCommand: 'gcc -o solution solution.c',
+    runCommand: './solution',
     template: `#include <stdio.h>
-
 int main() {
-    // Write your code here
+    char s[100];
+    if (fgets(s, sizeof(s), stdin)) {
+        printf("%s", s);
+    }
     return 0;
 }`,
   },

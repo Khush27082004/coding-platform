@@ -154,8 +154,6 @@ export class DockerService {
     switch (language.toLowerCase()) {
       case 'java':
         return 'Solution.java';
-      case 'go':
-        return 'solution.go';
       default:
         return `solution.${config.fileExtension}`;
     }
@@ -190,12 +188,17 @@ export class DockerService {
 
       const startTime = Date.now();
       
-      // Build local run command (note: this assumes compilers/interpreters are installed on the server)
+      // Build local run command
       let runCmd = '';
-      if (config.compileCommand) {
-        runCmd = `${config.compileCommand.replace('solution.', 'Solution.').replace('/workspace/', workDir + '/')} && `;
+      if (config.compileCommand && config.compileCommand.trim() !== '') {
+        runCmd = `${config.compileCommand.replace('solution.', 'solution.').replace('Solution.', 'Solution.')} && `;
       }
-      runCmd += `${config.runCommand.replace('/workspace/', workDir + '/')} < input.txt`;
+      
+      if (config.runCommand) {
+        runCmd += config.runCommand;
+      } else {
+        throw new Error(`Run command not defined for language: ${language}`);
+      }
 
       let output = '';
       let error = '';
