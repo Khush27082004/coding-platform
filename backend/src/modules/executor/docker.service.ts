@@ -195,7 +195,7 @@ export class DockerService {
       }
       
       if (config.runCommand) {
-        runCmd += config.runCommand;
+        runCmd += `${config.runCommand} < input.txt`;
       } else {
         throw new Error(`Run command not defined for language: ${language}`);
       }
