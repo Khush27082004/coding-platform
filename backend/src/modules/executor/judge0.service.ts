@@ -10,8 +10,8 @@ export class Judge0Service {
 
   constructor() {
     this.apiKey = env.JUDGE0_API_KEY || '';
-    this.host = env.JUDGE0_HOST || 'judge0-ce.p.rapidapi.com';
-    this.baseUrl = `https://${this.host}`;
+    this.host = env.JUDGE0_HOST || 'ce.judge0.com';
+    this.baseUrl = this.host.startsWith('http') ? this.host : `https://${this.host}`;
   }
 
   async executeCode(
@@ -19,10 +19,6 @@ export class Judge0Service {
     sourceCode: string,
     stdin: string
   ): Promise<ExecutionResult> {
-    if (!this.apiKey) {
-      throw new Error('JUDGE0_API_KEY is not configured');
-    }
-
     try {
       // Submit code
       const response = await axios.post(
@@ -34,9 +30,11 @@ export class Judge0Service {
         },
         {
           params: { base64_encoded: 'false', wait: 'true' },
-          headers: {
+          headers: this.apiKey ? {
             'x-rapidapi-key': this.apiKey,
             'x-rapidapi-host': this.host,
+            'Content-Type': 'application/json',
+          } : {
             'Content-Type': 'application/json',
           },
         }
