@@ -57,6 +57,7 @@ model Question {
 
   @@index([difficulty])
   @@index([createdById])
+  @@index([isActive])
   @@map("questions")
 }
 

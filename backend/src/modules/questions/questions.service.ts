@@ -87,7 +87,25 @@ export class QuestionsService {
       throw new AppError(404, 'QUESTION_NOT_FOUND', 'Question not found');
     }
 
-    return question;
+    // Performance optimization: fetch next/prev IDs in parallel
+    const [nextQ, prevQ] = await Promise.all([
+      prisma.question.findFirst({
+        where: { isActive: true, createdAt: { lt: question.createdAt } },
+        orderBy: { createdAt: 'desc' },
+        select: { id: true }
+      }),
+      prisma.question.findFirst({
+        where: { isActive: true, createdAt: { gt: question.createdAt } },
+        orderBy: { createdAt: 'asc' },
+        select: { id: true }
+      })
+    ]);
+
+    return {
+      ...question,
+      nextId: nextQ?.id || null,
+      prevId: prevQ?.id || null
+    };
   }
 
   async update(id: string, data: any) {
