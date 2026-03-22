@@ -177,18 +177,73 @@ export class DockerService {
     language: string,
     input: string
   ): Promise<ExecutionResult> {
-    // Fallback for when Docker is not available
-    // This is NOT secure and should only be used for development
     logger.warn('Executing code locally without Docker isolation - NOT SECURE!');
     
-    return {
-      output: 'Docker is disabled. Enable Docker for code execution.',
-      error: 'DOCKER_DISABLED',
-      executionTime: 0,
-      memoryUsed: 0,
-      exitCode: 1,
-      timedOut: false,
-    };
+    const executionId = randomUUID();
+    const workDir = join(this.tempDir, executionId);
+    const config = getLanguageConfig(language);
+    
+    try {
+      await mkdir(workDir, { recursive: true });
+      const fileName = this.getFileName(language);
+      const filePath = join(workDir, fileName);
+      await writeFile(filePath, code);
+      await writeFile(join(workDir, 'input.txt'), input);
+
+      const startTime = Date.now();
+      
+      // Build local run command (note: this assumes compilers/interpreters are installed on the server)
+      let runCmd = '';
+      if (config.compileCommand) {
+        runCmd = `${config.compileCommand.replace('solution.', 'Solution.').replace('/workspace/', workDir + '/')} && `;
+      }
+      runCmd += `${config.runCommand.replace('/workspace/', workDir + '/')} < input.txt`;
+
+      let output = '';
+      let error = '';
+      let exitCode = 0;
+      let timedOut = false;
+
+      try {
+        const { stdout, stderr } = await execAsync(runCmd, {
+          cwd: workDir,
+          timeout: config.timeout,
+          maxBuffer: 1024 * 1024
+        });
+        output = stdout;
+        error = stderr;
+      } catch (err: any) {
+        if (err.killed) {
+          timedOut = true;
+          error = 'Execution timed out';
+        } else {
+          error = err.stderr || err.message;
+          exitCode = err.code || 1;
+        }
+      }
+
+      const executionTime = Date.now() - startTime;
+      await this.cleanup(workDir);
+
+      return {
+        output: output.trim(),
+        error: error ? error.trim() : null,
+        executionTime,
+        memoryUsed: 0,
+        exitCode,
+        timedOut
+      };
+    } catch (err: any) {
+      await this.cleanup(workDir);
+      return {
+        output: '',
+        error: err.message,
+        executionTime: 0,
+        memoryUsed: 0,
+        exitCode: 1,
+        timedOut: false
+      };
+    }
   }
 
   async testDockerAvailability(): Promise<boolean> {
