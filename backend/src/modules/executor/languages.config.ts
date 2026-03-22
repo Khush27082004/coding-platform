@@ -4,6 +4,7 @@ export const languageConfigs = {
     fileExtension: 'py',
     compileCommand: '',
     runCommand: 'python3 solution.py',
+    judge0Id: 71,
     template: `def lengthOfLastWord(s):
     s = s.strip()
     length = 0
@@ -22,6 +23,7 @@ if __name__ == "__main__":
     fileExtension: 'js',
     compileCommand: '',
     runCommand: 'node solution.js',
+    judge0Id: 63,
     template: `const fs = require('fs');
 const input = fs.readFileSync(0, 'utf8').trim();
 console.log(input);`,
@@ -31,6 +33,7 @@ console.log(input);`,
     fileExtension: 'java',
     compileCommand: 'javac Solution.java',
     runCommand: 'java Solution',
+    judge0Id: 62,
     template: `import java.util.Scanner;
 public class Solution {
     public static void main(String[] args) {
@@ -46,6 +49,7 @@ public class Solution {
     fileExtension: 'cpp',
     compileCommand: 'g++ -o solution solution.cpp',
     runCommand: './solution',
+    judge0Id: 54,
     template: `#include <iostream>
 #include <string>
 using namespace std;
@@ -61,6 +65,7 @@ int main() {
     fileExtension: 'c',
     compileCommand: 'gcc -o solution solution.c',
     runCommand: './solution',
+    judge0Id: 50,
     template: `#include <stdio.h>
 int main() {
     char s[100];

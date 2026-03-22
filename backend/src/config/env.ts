@@ -16,6 +16,9 @@ const envSchema = z.object({
   RATE_LIMIT_WINDOW: z.string().default('60000'),
   RATE_LIMIT_MAX: z.string().default('100'),
   CORS_ORIGIN: z.string().default('http://localhost:5173'),
+  JUDGE0_API_KEY: z.string().optional(),
+  JUDGE0_HOST: z.string().default('judge0-ce.p.rapidapi.com'),
+  JUDGE0_ENABLED: z.string().default('false'),
 });
 
 const parsed = envSchema.safeParse(process.env);
@@ -38,4 +41,7 @@ export const env = {
   RATE_LIMIT_WINDOW: parseInt(parsed.data.RATE_LIMIT_WINDOW, 10),
   RATE_LIMIT_MAX: parseInt(parsed.data.RATE_LIMIT_MAX, 10),
   CORS_ORIGIN: parsed.data.CORS_ORIGIN,
+  JUDGE0_API_KEY: parsed.data.JUDGE0_API_KEY,
+  JUDGE0_HOST: parsed.data.JUDGE0_HOST,
+  JUDGE0_ENABLED: parsed.data.JUDGE0_ENABLED === 'true',
 };

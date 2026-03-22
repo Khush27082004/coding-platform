@@ -15,11 +15,16 @@
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\""
   },
-  "keywords": ["coding", "assessment", "platform"],
+  "keywords": [
+    "coding",
+    "assessment",
+    "platform"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {
     "@prisma/client": "^5.9.1",
+    "axios": "^1.13.6",
     "bcrypt": "^5.1.1",
     "cors": "^2.8.5",
     "dotenv": "^16.4.1",
