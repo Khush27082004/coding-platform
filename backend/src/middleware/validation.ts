@@ -9,7 +9,8 @@ export const validate = (schema: AnyZodObject) => {
         query: req.query,
         params: req.params,
       });
-      next();
+      });
+      return next();
     } catch (error) {
       if (error instanceof ZodError) {
         const firstError = error.errors[0];
@@ -22,7 +23,7 @@ export const validate = (schema: AnyZodObject) => {
           },
         });
       }
-      next(error);
+      return next(error);
     }
   };
 };

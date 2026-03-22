@@ -19,7 +19,7 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     const token = authHeader.substring(7);
     const payload = verifyToken(token);
     req.user = payload;
-    next();
+    return next();
   } catch (error) {
     return res.status(401).json({
       success: false,
@@ -53,6 +53,6 @@ export const authorize = (...roles: string[]) => {
       });
     }
 
-    next();
+    return next();
   };
 };
