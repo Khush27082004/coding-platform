@@ -71,7 +71,7 @@ export class SubmissionsService {
       return firstTry;
     }
 
-    const secondTry = await executor.executeWithDocker(language, code, normalizedInput);
+    const secondTry = await executor.executeWithDocker(language as any, code, normalizedInput);
     if (secondTry.success) {
       return secondTry;
     }

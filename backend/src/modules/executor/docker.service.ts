@@ -68,7 +68,6 @@ export class DockerService {
       const dockerCmd = this.buildDockerCommand(
         config,
         workDir,
-        fileName,
         timeout
       );
 
