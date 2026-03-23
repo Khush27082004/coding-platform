@@ -51,4 +51,16 @@ export class AuthController {
       message: 'Logged out successfully',
     });
   }
+
+  async getUsers(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const users = await authService.findAllCandidates();
+      res.json({
+        success: true,
+        data: users,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

@@ -113,4 +113,17 @@ export class AuthService {
 
     return user;
   }
+
+  async findAllCandidates() {
+    return prisma.user.findMany({
+      where: { role: 'candidate', isActive: true },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+      },
+      orderBy: { fullName: 'asc' },
+    });
+  }
 }
