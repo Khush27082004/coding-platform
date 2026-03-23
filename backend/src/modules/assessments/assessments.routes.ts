@@ -13,5 +13,6 @@ router.get('/:id', controller.getById);
 router.get('/:id/results', authorize('admin'), controller.getResults);
 router.post('/:id/assign', authorize('admin'), controller.assign);
 router.post('/:id/start', controller.start);
+router.patch('/:id/tab-switch', controller.updateTabSwitches);
 
 export default router;

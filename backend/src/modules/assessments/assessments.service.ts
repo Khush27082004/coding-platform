@@ -217,4 +217,23 @@ export class AssessmentsService {
       })),
     };
   }
+
+  async updateTabSwitches(userAssessmentId: string, userId: string) {
+    const userAssessment = await prisma.userAssessment.findUnique({
+      where: { id: userAssessmentId },
+    });
+
+    if (!userAssessment || userAssessment.userId !== userId) {
+      throw new AppError(404, 'ASSESSMENT_NOT_FOUND', 'Assessment not found');
+    }
+
+    const updated = await prisma.userAssessment.update({
+      where: { id: userAssessmentId },
+      data: {
+        tabSwitches: { increment: 1 },
+      },
+    });
+
+    return updated;
+  }
 }
