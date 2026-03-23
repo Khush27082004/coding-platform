@@ -17,6 +17,38 @@ export const TakeTest = () => {
     startAssessment();
   }, [id]);
 
+  // Tab switch detection
+  const [switchCount, setSwitchCount] = useState(0);
+  useEffect(() => {
+    if (!assessment?.id) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'hidden') {
+        const newCount = switchCount + 1;
+        setSwitchCount(newCount);
+        
+        console.log(`Tab switch detected! Count: ${newCount}`);
+        
+        try {
+          await api.patch(`/assessments/${assessment.id}/tab-switch`);
+        } catch (err) {
+          console.error('Failed to log tab switch', err);
+        }
+
+        if (newCount === 1) {
+          alert('🚨 WARNING: Tab switching is NOT allowed during the assessment. Switching again will result in AUTOMATIC SUBMISSION.');
+        } else if (newCount >= 2) {
+          alert('🚫 MAXIMUM ATTEMPTS EXCEEDED: Your assessment is being submitted automatically due to multiple tab switches.');
+          submitCode(); // This submits the current question
+          // In a more advanced version, we might want to flag the entire UserAssessment as 'completed'
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [assessment?.id, switchCount]);
+
   const startAssessment = async () => {
     try {
       const res = await api.post(`/assessments/${id}/start`);

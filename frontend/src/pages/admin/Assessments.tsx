@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Assessment } from '../../types';
+import { Assessment, Question, User } from '../../types';
 import { AppShell } from '../../components/AppShell';
 
 type AssessmentResultRow = {
@@ -14,6 +14,7 @@ type AssessmentResultRow = {
   passed: boolean;
   startedAt?: string | null;
   completedAt?: string | null;
+  tabSwitches: number;
 };
 
 type AssessmentResultsResponse = {
@@ -29,160 +30,221 @@ type AssessmentResultsResponse = {
 export const Assessments = () => {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expandedAssessmentId, setExpandedAssessmentId] = useState<string | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [resultsByAssessment, setResultsByAssessment] = useState<Record<string, AssessmentResultsResponse>>({});
   const [resultsLoading, setResultsLoading] = useState<Record<string, boolean>>({});
 
+  // Modals
+  const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const [isAssignOpen, setIsAssignOpen] = useState(false);
+  const [selectedAssessment, setSelectedAssessment] = useState<Assessment | null>(null);
+
+  // Data for modals
+  const [allQuestions, setAllQuestions] = useState<Question[]>([]);
+  const [allCandidates, setAllCandidates] = useState<User[]>([]);
+  const [selQuestionIds, setSelQuestionIds] = useState<string[]>([]);
+  const [selUserIds, setSelUserIds] = useState<string[]>([]);
+  
+  const [creating, setCreating] = useState(false);
+  const [assigning, setAssigning] = useState(false);
+
+  const [newAsm, setNewAsm] = useState({
+    title: '',
+    description: '',
+    duration: 60,
+    passingScore: 50,
+  });
+
   useEffect(() => {
     fetchAssessments();
+    fetchQuestions();
+    fetchCandidates();
   }, []);
 
   const fetchAssessments = async () => {
     try {
       const res = await api.get('/assessments');
       setAssessments(res.data.data);
-    } catch (error) {
-      console.error('Failed to fetch assessments', error);
-    } finally {
-      setLoading(false);
-    }
+    } catch (err) { console.error(err); }
+    finally { setLoading(false); }
   };
 
-  const formatDateTime = (value?: string | null) => {
-    if (!value) return '—';
-    return new Date(value).toLocaleString();
-  };
-
-  const loadAssessmentResults = async (assessmentId: string) => {
-    setResultsLoading((prev) => ({ ...prev, [assessmentId]: true }));
+  const fetchQuestions = async () => {
     try {
-      const res = await api.get(`/assessments/${assessmentId}/results`);
-      setResultsByAssessment((prev) => ({
-        ...prev,
-        [assessmentId]: res.data.data,
-      }));
-    } catch (error) {
-      console.error('Failed to fetch assessment results', error);
-    } finally {
-      setResultsLoading((prev) => ({ ...prev, [assessmentId]: false }));
-    }
+      const res = await api.get('/questions');
+      setAllQuestions(res.data.data);
+    } catch (err) { console.error(err); }
   };
 
-  const toggleResults = async (assessmentId: string) => {
-    const isOpen = expandedAssessmentId === assessmentId;
-    if (isOpen) {
-      setExpandedAssessmentId(null);
-      return;
-    }
-    setExpandedAssessmentId(assessmentId);
-    if (!resultsByAssessment[assessmentId]) {
-      await loadAssessmentResults(assessmentId);
-    }
+  const fetchCandidates = async () => {
+    try {
+      const res = await api.get('/auth/users');
+      setAllCandidates(res.data.data);
+    } catch (err) { console.error(err); }
   };
 
-  if (loading) {
-    return (
-      <AppShell title="Tests & results" subtitle="Loading…">
-        <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-12 text-center text-slate-500 text-sm">Loading assessments…</div>
-      </AppShell>
-    );
-  }
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selQuestionIds.length === 0) return alert('Select questions');
+    setCreating(true);
+    try {
+      await api.post('/assessments', {
+        ...newAsm,
+        questions: selQuestionIds.map(id => ({ questionId: id, points: 100 }))
+      });
+      setIsCreateOpen(false);
+      setNewAsm({ title: '', description: '', duration: 60, passingScore: 50 });
+      setSelQuestionIds([]);
+      fetchAssessments();
+    } catch (err) { alert('Failed'); }
+    finally { setCreating(false); }
+  };
+
+  const handleAssign = async () => {
+    if (!selectedAssessment || selUserIds.length === 0) return;
+    setAssigning(true);
+    try {
+      await api.post(`/assessments/${selectedAssessment.id}/assign`, { userIds: selUserIds });
+      setIsAssignOpen(false);
+      setSelUserIds([]);
+      loadResults(selectedAssessment.id);
+    } catch (err) { alert('Failed'); }
+    finally { setAssigning(false); }
+  };
+
+  const loadResults = async (id: string) => {
+    setResultsLoading(p => ({ ...p, [id]: true }));
+    try {
+      const res = await api.get(`/assessments/${id}/results`);
+      setResultsByAssessment(p => ({ ...p, [id]: res.data.data }));
+    } catch (err) { console.error(err); }
+    finally { setResultsLoading(p => ({ ...p, [id]: false })); }
+  };
+
+  const toggleResults = (id: string) => {
+    if (expandedId === id) { setExpandedId(null); return; }
+    setExpandedId(id);
+    if (!resultsByAssessment[id]) loadResults(id);
+  };
+
+  if (loading) return <AppShell title="Assessments" subtitle="Loading..."><div className="p-10 text-center text-slate-500">Loading...</div></AppShell>;
 
   return (
-    <AppShell
-      title="Tests & results"
-      subtitle="Scheduled assessments and per-candidate scores. New tests are created via your database or API workflow."
-      wide
-    >
-      <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 px-4 py-3 text-sm text-amber-200/90 mb-6">
-        <strong className="font-medium text-amber-100">Note:</strong> This UI does not include a test builder yet. Use seed data or direct DB/API to add assessments, then assign candidates.
+    <AppShell title="Assessments" subtitle="Manage your exams." wide>
+      <div className="mb-8 flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-white">Assessment Management</h1>
+        <button onClick={() => setIsCreateOpen(true)} className="bg-indigo-600 px-4 py-2 rounded-lg text-white font-bold hover:bg-indigo-500 transition-all">+ Create Test</button>
       </div>
 
-      <div className="space-y-3">
-        {assessments.map((a) => (
-          <div
-            key={a.id}
-            className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden"
-          >
-            <div className="p-5 sm:p-6">
-              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
-                <div>
-                  <h3 className="text-lg font-semibold text-white">{a.title}</h3>
-                  {a.description ? <p className="mt-1 text-sm text-slate-400 max-w-2xl">{a.description}</p> : null}
-                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                    <span>{a.duration} min</span>
-                    <span>{a.totalScore ?? '—'} pts total</span>
-                    <span>Pass ≥ {a.passingScore}</span>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => toggleResults(a.id)}
-                  className="shrink-0 rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 transition-colors"
-                >
-                  {expandedAssessmentId === a.id ? 'Hide scoreboard' : 'View scoreboard'}
-                </button>
+      <div className="space-y-4">
+        {assessments.map(a => (
+          <div key={a.id} className="bg-slate-900/40 border border-slate-800 rounded-2xl overflow-hidden">
+            <div className="p-6 flex justify-between items-center">
+              <div>
+                <h3 className="text-xl font-bold text-white">{a.title}</h3>
+                <p className="text-sm text-slate-400 mt-1">{a.duration} mins • {a.totalScore} pts • Pass: {a.passingScore}</p>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setSelectedAssessment(a); setIsAssignOpen(true); }} className="bg-slate-800 px-4 py-2 rounded-lg text-slate-300 text-sm font-bold hover:text-white transition-all">Assign</button>
+                <button onClick={() => toggleResults(a.id)} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${expandedId === a.id ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'}`}>Results</button>
               </div>
             </div>
 
-            {expandedAssessmentId === a.id && (
-              <div className="border-t border-slate-800 bg-slate-950/50 px-5 sm:px-6 py-4">
-                {resultsLoading[a.id] ? (
-                  <p className="text-sm text-slate-500">Loading results…</p>
-                ) : (resultsByAssessment[a.id]?.rows?.length || 0) === 0 ? (
-                  <p className="text-sm text-slate-500">No candidates assigned to this test yet.</p>
-                ) : (
-                  <div className="overflow-x-auto rounded-lg border border-slate-800">
-                    <table className="min-w-full text-sm">
+            {expandedId === a.id && (
+              <div className="p-6 border-t border-slate-800 bg-slate-950/40">
+                {resultsLoading[a.id] ? <div className="text-center py-4 text-slate-500">Loading results...</div> :
+                 (resultsByAssessment[a.id]?.rows?.length || 0) === 0 ? <div className="text-center py-4 text-slate-600 italic">No candidates assigned.</div> :
+                 <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm">
                       <thead>
-                        <tr className="border-b border-slate-800 text-left text-xs font-semibold uppercase tracking-wider text-slate-500">
-                          <th className="px-4 py-3">Student</th>
-                          <th className="px-4 py-3">Email</th>
-                          <th className="px-4 py-3">Status</th>
-                          <th className="px-4 py-3">Score</th>
-                          <th className="px-4 py-3">Result</th>
-                          <th className="px-4 py-3">Started</th>
-                          <th className="px-4 py-3">Completed</th>
+                        <tr className="text-slate-500 border-b border-slate-800">
+                          <th className="py-3 px-4">Student</th>
+                          <th className="py-3 px-4">Status</th>
+                          <th className="py-3 px-4">Security</th>
+                          <th className="py-3 px-4">Score</th>
+                          <th className="py-3 px-4 text-right">Activity</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-800">
-                        {resultsByAssessment[a.id].rows.map((row) => (
-                          <tr key={row.userAssessmentId} className="text-slate-300">
-                            <td className="px-4 py-3 font-medium text-white">{row.candidateName}</td>
-                            <td className="px-4 py-3 text-slate-400">{row.candidateEmail}</td>
-                            <td className="px-4 py-3 capitalize">{row.status.replace('_', ' ')}</td>
-                            <td className="px-4 py-3 tabular-nums">
-                              {row.score}/{row.maxScore}
-                            </td>
-                            <td className="px-4 py-3">
-                              <span
-                                className={
-                                  row.passed
-                                    ? 'text-emerald-400 font-medium'
-                                    : 'text-rose-400 font-medium'
-                                }
-                              >
-                                {row.passed ? 'Pass' : 'Fail'}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{formatDateTime(row.startedAt)}</td>
-                            <td className="px-4 py-3 text-slate-500 text-xs whitespace-nowrap">{formatDateTime(row.completedAt)}</td>
+                        {resultsByAssessment[a.id].rows.map(r => (
+                          <tr key={r.userAssessmentId} className="hover:bg-slate-800/10">
+                            <td className="py-4 px-4 font-bold text-white">{r.candidateName}<div className="text-[11px] font-normal text-slate-500">{r.candidateEmail}</div></td>
+                            <td className="py-4 px-4 capitalize"><span className={`px-2 py-0.5 rounded text-[10px] font-bold ${r.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-500'}`}>{r.status.replace('_', ' ')}</span></td>
+                            <td className="py-4 px-4 text-slate-400">{r.tabSwitches} switches</td>
+                            <td className="py-4 px-4 font-bold text-white">{r.score} <span className="text-slate-600 font-normal">/ {r.maxScore}</span></td>
+                            <td className="py-4 px-4 text-right text-xs text-slate-500">{r.completedAt ? new Date(r.completedAt).toLocaleString() : '—'}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
-                  </div>
-                )}
+                 </div>
+                }
               </div>
             )}
           </div>
         ))}
       </div>
 
-      {assessments.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/30 py-16 text-center">
-          <p className="text-slate-400 text-sm">No assessments in the system.</p>
-          <p className="text-slate-600 text-xs mt-2">Add records via Prisma seed or API, then refresh.</p>
+      {isCreateOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-white">Create Assessment</h2>
+              <button onClick={() => setIsCreateOpen(false)} className="text-slate-500 hover:text-white">✕</button>
+            </div>
+            <form onSubmit={handleCreate} className="p-8 flex-1 overflow-y-auto space-y-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="col-span-2">
+                  <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Title</label>
+                  <input required value={newAsm.title} onChange={e => setNewAsm({...newAsm, title: e.target.value})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" placeholder="Enter title" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Duration (Min)</label>
+                  <input type="number" value={newAsm.duration} onChange={e => setNewAsm({...newAsm, duration: parseInt(e.target.value)})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" />
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Passing Score</label>
+                  <input type="number" value={newAsm.passingScore} onChange={e => setNewAsm({...newAsm, passingScore: parseInt(e.target.value)})} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white focus:border-indigo-500 outline-none" />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-slate-500 uppercase block mb-2">Select Questions</label>
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-2 h-48 overflow-y-auto space-y-1">
+                  {allQuestions.map(q => (
+                    <div key={q.id} onClick={() => setSelQuestionIds(p => p.includes(q.id) ? p.filter(i => i !== q.id) : [...p, q.id])} className={`p-3 rounded-xl cursor-pointer transition-all flex justify-between items-center ${selQuestionIds.includes(q.id) ? 'bg-indigo-600/10 border-indigo-500/30 border' : 'hover:bg-slate-900 border border-transparent'}`}>
+                      <span className="text-sm font-bold text-slate-300">{q.title}</span>
+                      <div className={`h-4 w-4 rounded border flex items-center justify-center ${selQuestionIds.includes(q.id) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-800'}`}>
+                        {selQuestionIds.includes(q.id) && <span className="text-[10px] text-white">✓</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <button disabled={creating} className="w-full bg-indigo-600 py-4 rounded-2xl text-white font-black hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-600/20">{creating ? 'CREATING...' : 'PUBLISH ASSESSMENT'}</button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {isAssignOpen && selectedAssessment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm">
+          <div className="bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[80vh]">
+            <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+              <h2 className="text-lg font-bold text-white">Assign: {selectedAssessment.title}</h2>
+              <button onClick={() => setIsAssignOpen(false)} className="text-slate-500">✕</button>
+            </div>
+            <div className="p-6 overflow-y-auto space-y-2">
+              {allCandidates.map(u => (
+                <div key={u.id} onClick={() => setSelUserIds(p => p.includes(u.id) ? p.filter(i => i !== u.id) : [...p, u.id])} className={`p-4 rounded-xl border cursor-pointer flex justify-between items-center transition-all ${selUserIds.includes(u.id) ? 'bg-indigo-600/10 border-indigo-500/40' : 'bg-slate-950 border-slate-800'}`}>
+                  <div><div className="font-bold text-white text-sm">{u.fullName}</div><div className="text-[10px] text-slate-500">{u.email}</div></div>
+                  <div className={`h-5 w-5 rounded-full border-2 ${selUserIds.includes(u.id) ? 'bg-indigo-600 border-indigo-600' : 'border-slate-800'}`}>{selUserIds.includes(u.id) && <span className="text-white text-xs block text-center">✓</span>}</div>
+                </div>
+              ))}
+            </div>
+            <div className="p-6 bg-slate-950/40 border-t border-slate-800">
+               <button disabled={assigning || selUserIds.length === 0} onClick={handleAssign} className="w-full bg-indigo-600 py-3 rounded-xl text-white font-black hover:bg-indigo-500 transition-all shadow-xl shadow-indigo-600/20">{assigning ? 'ASSIGNING...' : 'CONFIRM ASSIGNMENT'}</button>
+            </div>
+          </div>
         </div>
       )}
     </AppShell>
