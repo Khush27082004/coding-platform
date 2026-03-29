@@ -31,8 +31,6 @@ export class AssessmentsService {
   }
 
   async findAll(userId?: string, role?: string) {
-    const where: any = { isActive: true };
-
     if (role === 'candidate' && userId) {
       return prisma.assessment.findMany({
         where: { isActive: true },
@@ -45,8 +43,8 @@ export class AssessmentsService {
       });
     }
 
+    // Admins see everything (including inactive ones)
     return prisma.assessment.findMany({
-      where,
       orderBy: { createdAt: 'desc' },
     });
   }
