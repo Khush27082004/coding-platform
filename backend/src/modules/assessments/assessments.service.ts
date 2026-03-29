@@ -82,21 +82,36 @@ export class AssessmentsService {
   async update(id: string, data: any) {
     const { title, description, duration, passingScore, isActive, questions } = data;
     
-    const assessment = await prisma.assessment.findUnique({ where: { id } });
+    const assessment = await prisma.assessment.findUnique({ 
+      where: { id },
+      include: { assessmentQuestions: true }
+    });
+
     if (!assessment) {
       throw new AppError(404, 'ASSESSMENT_NOT_FOUND', 'Assessment not found');
     }
 
     const finalIsActive = isActive !== undefined ? isActive : assessment.isActive;
 
-    if (questions && finalIsActive) {
-      throw new AppError(400, 'CANNOT_EDIT_QUESTIONS_WHILE_ACTIVE', 'Cannot modify assessment questions while it is active.');
+    // Check if questions actually changed
+    let questionsChanged = false;
+    if (questions) {
+      const existingQIds = assessment.assessmentQuestions.map(aq => aq.questionId).sort();
+      const newQIds = questions.map((q: any) => q.questionId).sort();
+      
+      if (existingQIds.length !== newQIds.length || !existingQIds.every((val, index) => val === newQIds[index])) {
+        questionsChanged = true;
+      }
+    }
+
+    if (questionsChanged && finalIsActive) {
+      throw new AppError(400, 'CANNOT_EDIT_QUESTIONS_WHILE_ACTIVE', 'Cannot modify questions while the assessment is Active. Please deactivate it first.');
     }
 
     return await prisma.$transaction(async (tx) => {
       let currentTotalScore = assessment.totalScore || 0;
 
-      if (questions) {
+      if (questions && questionsChanged) {
         await tx.assessmentQuestion.deleteMany({ where: { assessmentId: id } });
         
         if (questions.length > 0) {
@@ -118,7 +133,7 @@ export class AssessmentsService {
           title: title !== undefined ? title : assessment.title,
           description: description !== undefined ? description : assessment.description,
           duration: duration !== undefined ? duration : assessment.duration,
-          passingScore: passingScore !== undefined ? passingScore : assessment.passingScore,
+          passingScore: passingScore !== undefined ? passingScore : (assessment.passingScore || 0),
           isActive: finalIsActive,
           totalScore: currentTotalScore,
         },
