@@ -1,5 +1,6 @@
 import prisma from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
+import { cache } from '../../utils/cache';
 
 export class AssessmentsService {
   async create(data: any, userId: string) {
@@ -57,6 +58,10 @@ export class AssessmentsService {
   }
 
   async findById(id: string) {
+    const cacheKey = `assessment:${id}`;
+    const cached = await cache.get<any>(cacheKey);
+    if (cached) return cached;
+
     const assessment = await prisma.assessment.findUnique({
       where: { id },
       include: {
@@ -81,6 +86,7 @@ export class AssessmentsService {
       throw new AppError(404, 'ASSESSMENT_NOT_FOUND', 'Assessment not found');
     }
 
+    await cache.set(cacheKey, assessment, 1800); // 30 mins
     return assessment;
   }
 
@@ -113,7 +119,7 @@ export class AssessmentsService {
       throw new AppError(400, 'CANNOT_EDIT_QUESTIONS_WHILE_ACTIVE', 'Cannot modify questions while the assessment is Active. Please deactivate it first.');
     }
 
-    return await prisma.$transaction(async (tx) => {
+    const updated = await prisma.$transaction(async (tx) => {
       let currentTotalScore = assessment.totalScore || 0;
 
       if (questions && questionsChanged) {
@@ -144,6 +150,11 @@ export class AssessmentsService {
         },
       });
     });
+
+    // Invalidate Cache
+    await cache.del(`assessment:${id}`);
+
+    return updated;
   }
 
   async assignToUsers(assessmentId: string, userIds: string[]) {
@@ -332,5 +343,40 @@ export class AssessmentsService {
     });
 
     return updated;
+  }
+
+  async saveProgress(userAssessmentId: string, userId: string, questionId: string, code: string, language: string) {
+    // Verify ownership
+    const ua = await prisma.userAssessment.findUnique({
+      where: { id: userAssessmentId }
+    });
+
+    if (!ua || ua.userId !== userId) {
+      throw new AppError(403, 'FORBIDDEN', 'You do not have access to this assessment');
+    }
+
+    return await prisma.userAssessmentProgress.upsert({
+      where: {
+        userAssessmentId_questionId: { userAssessmentId, questionId }
+      },
+      update: { code, language },
+      create: { userAssessmentId, questionId, code, language }
+    });
+  }
+
+  async getProgress(userAssessmentId: string, userId: string, questionId: string) {
+    const ua = await prisma.userAssessment.findUnique({
+      where: { id: userAssessmentId }
+    });
+
+    if (!ua || ua.userId !== userId) {
+      throw new AppError(403, 'FORBIDDEN', 'You do not have access to this assessment');
+    }
+
+    return await prisma.userAssessmentProgress.findUnique({
+      where: {
+        userAssessmentId_questionId: { userAssessmentId, questionId }
+      }
+    });
   }
 }

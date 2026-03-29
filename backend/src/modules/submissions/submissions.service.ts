@@ -2,10 +2,11 @@ import prisma from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { ExecutorService } from '../executor/executor.service';
 import { Language } from '../executor/languages.config';
+import { EventEmitter } from 'events';
 
 const executor = new ExecutorService();
 
-export class SubmissionsService {
+export class SubmissionsService extends EventEmitter {
   private normalizeOutputText(value: string): string {
     return String(value ?? '')
       .replace(/\r\n/g, '\n')
@@ -135,7 +136,7 @@ export class SubmissionsService {
       const evaluationResults = await Promise.all(testCases.map(async (testCase) => {
         const result = await this.executeWithInputCompatibility(language, code, testCase.input);
         const passed = result.success && this.compareOutputs(result.output, testCase.expectedOutput);
-        return {
+        const resData = {
           testCaseId: testCase.id,
           status: result.error ? 'error' : passed ? 'passed' : 'failed',
           actualOutput: result.output,
@@ -144,6 +145,11 @@ export class SubmissionsService {
           pointsEarned: passed ? testCase.points : 0,
           passed
         };
+        
+        // Emit for real-time streaming
+        this.emit(`submission:${submissionId}`, resData);
+        
+        return resData;
       }));
 
       // Persist results and update totals
@@ -416,7 +422,7 @@ export class SubmissionsService {
     const evaluationResults = await Promise.all(testCases.map(async (testCase) => {
       const execResult = await this.executeWithInputCompatibility(data.language as Language, data.code, testCase.input);
       const passed = execResult.success && this.compareOutputs(execResult.output, testCase.expectedOutput);
-      return {
+      const resData = {
         testCaseId: testCase.id,
         input: testCase.input,
         expectedOutput: testCase.expectedOutput,
@@ -427,6 +433,11 @@ export class SubmissionsService {
         errorMessage: execResult.error,
         passed
       };
+
+      // Emit for live run results
+      this.emit(`run:${data.questionId}`, resData);
+
+      return resData;
     }));
 
     let totalScore = 0;

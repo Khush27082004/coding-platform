@@ -17,5 +17,6 @@ router.post('/run-all', codeLimiter, controller.runAll);
 router.post('/practice', codeLimiter, controller.submitPractice);
 router.get('/history', controller.getHistory);
 router.get('/:id', controller.getSubmission);
+router.get('/stream/:id', controller.streamResults);
 
 export default router;

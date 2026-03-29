@@ -7,6 +7,7 @@ import { Dashboard } from './pages/Dashboard';
 import { Questions } from './pages/admin/Questions';
 import { CreateQuestion } from './pages/admin/CreateQuestion';
 import { Assessments } from './pages/admin/Assessments';
+import { Settings } from './pages/admin/Settings';
 
 import { Practice } from './pages/candidate/Practice';
 import { PracticeProblem } from './pages/candidate/PracticeProblem';
@@ -42,6 +43,7 @@ function AppRoutes() {
         <Route path="/admin/questions/:id/edit" element={<AdminRoute><CreateQuestion /></AdminRoute>} />
         <Route path="/admin/assessments" element={<AdminRoute><Assessments /></AdminRoute>} />
         <Route path="/admin/assessments/create" element={<Navigate to="/admin/assessments" replace />} />
+        <Route path="/admin/settings" element={<AdminRoute><Settings /></AdminRoute>} />
 
 
         <Route path="/assessments" element={<PrivateRoute><Navigate to="/" replace /></PrivateRoute>} />

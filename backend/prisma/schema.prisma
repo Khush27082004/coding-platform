@@ -130,12 +130,26 @@ model UserAssessment {
   submissions  Submission[]
   assessment   Assessment       @relation(fields: [assessmentId], references: [id], onDelete: Cascade)
   user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  progress     UserAssessmentProgress[]
+ 
   @@unique([userId, assessmentId])
   @@index([userId])
   @@index([assessmentId])
   @@index([status])
   @@map("user_assessments")
+}
+
+model UserAssessmentProgress {
+  id               String         @id @default(uuid())
+  userAssessmentId String         @map("user_assessment_id")
+  questionId       String         @map("question_id")
+  code             String
+  language         String
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+  userAssessment   UserAssessment @relation(fields: [userAssessmentId], references: [id], onDelete: Cascade)
+  
+  @@unique([userAssessmentId, questionId])
+  @@map("user_assessment_progress")
 }
 
 model Submission {

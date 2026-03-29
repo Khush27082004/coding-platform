@@ -76,4 +76,24 @@ export class AssessmentsController {
       next(error);
     }
   }
+
+  async saveProgress(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { userAssessmentId, questionId, code, language } = req.body;
+      const result = await service.saveProgress(userAssessmentId, req.user!.userId, questionId, code, language);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getProgress(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const { userAssessmentId, questionId } = req.query;
+      const result = await service.getProgress(userAssessmentId as string, req.user!.userId, questionId as string);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

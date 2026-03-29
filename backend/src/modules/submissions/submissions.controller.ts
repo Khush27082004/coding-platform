@@ -79,4 +79,27 @@ export class SubmissionsController {
       next(error);
     }
   }
+
+  async streamResults(req: AuthRequest, res: Response) {
+    const { id } = req.params;
+    
+    // SSE Headers
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+
+    const onResult = (data: any) => {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    };
+
+    service.on(`submission:${id}`, onResult);
+    service.on(`run:${id}`, onResult); // Also for runAllTestCases if ID matches
+
+    req.on('close', () => {
+      service.removeListener(`submission:${id}`, onResult);
+      service.removeListener(`run:${id}`, onResult);
+      res.end();
+    });
+  }
 }

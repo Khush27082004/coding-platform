@@ -50,6 +50,7 @@ export const PracticeProblem = () => {
   const userAssessmentId = queryParams.get('userAssessmentId');
   const [userAssessment, setUserAssessment] = useState<any>(null);
   const [switchCount, setSwitchCount] = useState(0);
+  const [isInitializing, setIsInitializing] = useState(false);
 
   useEffect(() => {
     // Instant initialization from dashboard state
@@ -68,6 +69,10 @@ export const PracticeProblem = () => {
         const elapsedMs = Date.now() - startTime;
         const remainingSec = Math.max(0, Math.floor((durationMs - elapsedMs) / 1000));
         setTimeLeft(remainingSec);
+        
+        // Show starting status for 1.5s
+        setIsInitializing(true);
+        setTimeout(() => setIsInitializing(false), 1500);
       }
       setLoading(false);
     }
@@ -138,6 +143,27 @@ export const PracticeProblem = () => {
     }
   }, [isDragging]);
 
+  // ─── AUTO-SAVE ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!userAssessmentId || !id || !code) return;
+
+    const timer = setInterval(async () => {
+      try {
+        await api.post('/assessments/progress/save', {
+          userAssessmentId,
+          questionId: id,
+          code,
+          language
+        });
+        console.log('Auto-saved progress at', new Date().toLocaleTimeString());
+      } catch (err) {
+        console.error('Auto-save failed', err);
+      }
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(timer);
+  }, [userAssessmentId, id, code, language]);
+
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
@@ -151,6 +177,18 @@ export const PracticeProblem = () => {
     }, 1000);
     return () => clearInterval(timer);
   }, [id, userAssessmentId]);
+
+  const fetchSavedProgress = async (uaId: string, qId: string) => {
+    try {
+      const res = await api.get(`/assessments/progress/get?userAssessmentId=${uaId}&questionId=${qId}`);
+      if (res.data.data?.code) {
+        setCode(res.data.data.code);
+        if (res.data.data.language) setLanguage(res.data.data.language);
+      }
+    } catch (err) {
+      console.error('Failed to fetch saved progress', err);
+    }
+  };
 
   const fetchAssessment = async () => {
     // If we have initial state, we don't need the 'Loading problem' full screen spinner
@@ -171,6 +209,9 @@ export const PracticeProblem = () => {
       if (!code) setCode(getStarterCode(q, language));
       setUserAssessment(ua);
       setSwitchCount(ua.tabSwitches || 0);
+
+      // Load saved progress
+      await fetchSavedProgress(ua.id, id!);
 
       const startTime = new Date(ua.startedAt).getTime();
       const durationMs = ua.assessment.duration * 60 * 1000;
@@ -230,7 +271,7 @@ export const PracticeProblem = () => {
 
   const runCode = async () => {
     if (runCooldown > 0) return;
-    setRunCooldown(7);
+    setRunCooldown(10);
     setLoading(true);
     setOutput('Running...');
     setActiveTab('results');
@@ -246,7 +287,7 @@ export const PracticeProblem = () => {
 
   const runAllTestCases = async () => {
     if (runCooldown > 0) return;
-    setRunCooldown(7);
+    setRunCooldown(10);
     setLoading(true);
     setOutput('Running all test cases...');
     setActiveTab('results');
@@ -271,7 +312,7 @@ export const PracticeProblem = () => {
     const userAssessmentId = new URLSearchParams(window.location.search).get('userAssessmentId');
 
     // For assessment, set cooldown immediately
-    if (userAssessmentId) setRunCooldown(7);
+    if (userAssessmentId) setRunCooldown(10);
     else setRunCooldown(3); // shorter for practice
 
     // No assessment context → persist as a practice submission
@@ -298,7 +339,7 @@ export const PracticeProblem = () => {
       return;
     }
 
-    // Assessment submission flow with polling
+    // Assessment submission flow with streaming
     setSubmitting(true);
     setEvalOverlay({ stage: 'submitting', message: 'Submitting your solution...', passedTests: 0, totalTests: 0, score: 0, maxScore: 0, results: [] });
 
@@ -306,51 +347,113 @@ export const PracticeProblem = () => {
       const sub = await api.post('/submissions', { userAssessmentId, questionId: id, language, code });
       const submissionId = sub.data.data.id;
 
-      setEvalOverlay(prev => prev ? { ...prev, stage: 'evaluating', message: 'Evaluating against test cases...' } : prev);
+      setEvalOverlay({ stage: 'evaluating', message: 'Evaluating against test cases...', passedTests: 0, totalTests: 0, score: 0, maxScore: 0, results: [] });
+      
+      // Start streaming results
+      await streamResults(submissionId);
+    } catch (err) {
+      console.error('Submission error', err);
+      setEvalOverlay({ stage: 'error', message: 'Submission failed. Please try again.', passedTests: 0, totalTests: 0, score: 0, maxScore: 0, results: [] });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-      let attempts = 0;
-      const interval = setInterval(async () => {
-        attempts += 1;
-        try {
-          const statusRes = await api.get(`/submissions/${submissionId}`);
-          const evaluated = statusRes.data.data;
-          if (evaluated.status === 'completed') {
-            clearInterval(interval);
-            const passed = evaluated.passedTests || 0;
-            const total = evaluated.totalTests || question.testCases?.length || 0;
-            const sc = evaluated.score || 0;
-            const mx = question.testCases?.reduce((s: number, tc: any) => s + (tc.points ?? 1), 0) || 0;
-            const results = evaluated.submissionResults?.map((r: any) => ({
-              id: r.testCaseId,
-              input: r.testCase?.input || '',
-              expectedOutput: r.testCase?.expectedOutput || '',
-              actualOutput: r.actualOutput || '',
-              status: r.status,
-              pointsEarned: r.pointsEarned || 0,
-              pointsAvailable: r.testCase?.points || 0,
-              errorMessage: r.errorMessage,
-            })) || [];
-            setPassedTests(passed); setTotalTests(total); setScore(sc); setMaxScore(mx);
-            setTestCaseResults(results);
-            setOutput(`Submission complete: ${passed}/${total} passed, score ${sc}`);
-            setEvalOverlay({ stage: 'done', message: `Evaluation complete`, passedTests: passed, totalTests: total, score: sc, maxScore: mx, results });
-            setSubmitting(false);
-          } else if (attempts >= 30) {
-            clearInterval(interval);
-            setEvalOverlay(prev => prev ? { ...prev, stage: 'error', message: 'Evaluation timed out. Check submission history.' } : prev);
-            setSubmitting(false);
-          }
-        } catch {
-          if (attempts >= 30) {
-            clearInterval(interval);
-            setEvalOverlay(prev => prev ? { ...prev, stage: 'error', message: 'Server error. Check submission history.' } : prev);
-            setSubmitting(false);
+  const streamResults = async (submissionId: string) => {
+    try {
+      const token = localStorage.getItem('token');
+      const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+      const response = await fetch(`${baseUrl}/submissions/stream/${submissionId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+
+      if (!response.body) return;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+
+      let results: any[] = [];
+      let passedCount = 0;
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n');
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6));
+              
+              if (!results.find(r => r.id === data.testCaseId)) {
+                const newRes = {
+                  id: data.testCaseId,
+                  status: data.status,
+                  pointsEarned: data.pointsEarned,
+                  pointsAvailable: data.pointsAvailable || 0,
+                  errorMessage: data.errorMessage,
+                  passed: data.passed
+                };
+                results = [...results, newRes];
+                if (data.passed) passedCount++;
+
+                setEvalOverlay(prev => prev ? {
+                  ...prev,
+                  passedTests: passedCount,
+                  results: [...results]
+                } : prev);
+                
+                setTestCaseResults([...results]);
+                setPassedTests(passedCount);
+              }
+            } catch (e) { /* partial chunk */ }
           }
         }
-      }, 1000);
-    } catch {
-      setEvalOverlay(prev => prev ? { ...prev, stage: 'error', message: 'Submission failed. Please try again.' } : prev);
-      setSubmitting(false);
+      }
+
+      // Final results fetch
+      const finalRes = await api.get(`/submissions/${submissionId}`);
+      const finalSub = finalRes.data.data;
+      
+      const finalResults = finalSub.submissionResults?.map((r: any) => ({
+        id: r.testCaseId,
+        input: r.testCase?.input || '',
+        expectedOutput: r.testCase?.expectedOutput || '',
+        actualOutput: r.actualOutput || '',
+        status: r.status,
+        pointsEarned: r.pointsEarned || 0,
+        pointsAvailable: r.testCase?.points || 0,
+        errorMessage: r.errorMessage,
+      })) || [];
+
+      setPassedTests(finalSub.passedTests);
+      setTotalTests(finalSub.totalTests);
+      setScore(finalSub.score);
+      setMaxScore(finalSub.maxScore);
+      setTestCaseResults(finalResults);
+      setEvalOverlay({
+        stage: 'done',
+        message: `${finalSub.passedTests}/${finalSub.totalTests} test cases passed`,
+        passedTests: finalSub.passedTests,
+        totalTests: finalSub.totalTests,
+        score: finalSub.score,
+        maxScore: finalSub.maxScore,
+        results: finalResults
+      });
+    } catch (err) {
+      console.error('Streaming error', err);
+      const res = await api.get(`/submissions/${submissionId}`);
+      const s = res.data.data;
+      setEvalOverlay({
+        stage: 'done',
+        message: 'Evaluation complete',
+        passedTests: s.passedTests || 0,
+        totalTests: s.totalTests || 0,
+        score: s.score || 0,
+        maxScore: s.maxScore || 100,
+        results: s.submissionResults || []
+      });
     }
   };
 
@@ -372,6 +475,27 @@ export const PracticeProblem = () => {
     cpp: '⚙️',
     c: 'Ⓒ',
   };
+
+  if (isInitializing) {
+    return (
+      <div className="fixed inset-0 z-[100] bg-zinc-900/90 backdrop-blur-md flex flex-col items-center justify-center text-white">
+        <div className="relative w-20 h-20 mb-6">
+          <div className="absolute inset-0 border-4 border-emerald-500/20 rounded-full" />
+          <div className="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <div className="absolute inset-4 bg-emerald-500/10 rounded-full flex items-center justify-center">
+            <span className="text-2xl">🚀</span>
+          </div>
+        </div>
+        <h2 className="text-xl font-bold tracking-tight mb-2">Setting up your assessment session</h2>
+        <p className="text-emerald-400 font-medium animate-pulse">Initializing secure environment...</p>
+        <div className="mt-8 flex gap-1">
+          {[0, 1, 2].map((i) => (
+            <div key={i} className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   if (!question) return (
     <div className="min-h-screen bg-white flex items-center justify-center">

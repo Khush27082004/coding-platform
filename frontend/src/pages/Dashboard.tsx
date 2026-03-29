@@ -18,6 +18,7 @@ export const Dashboard = () => {
   const navigate = useNavigate();
   const [assigned, setAssigned] = useState<AssignedAssessment[]>([]);
   const [loadingTests, setLoadingTests] = useState(user?.role === 'candidate');
+  const [startingId, setStartingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user?.role !== 'candidate') return;
@@ -119,6 +120,7 @@ export const Dashboard = () => {
                         if (isCompleted) {
                           navigate('/submissions');
                         } else {
+                          setStartingId(a.id);
                           try {
                             const res = await api.post(`/assessments/${a.id}/start`);
                             const ua = res.data.data;
@@ -135,16 +137,30 @@ export const Dashboard = () => {
                             }
                           } catch (err: any) {
                             alert(err.response?.data?.error?.message || 'Failed to initialize assessment');
+                          } finally {
+                            setStartingId(null);
                           }
                         }
                       }}
-                      className={`mt-4 w-full sm:w-auto self-start rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
+                      disabled={isCompleted || startingId === a.id}
+                      className={`mt-4 w-full sm:w-auto self-start rounded-lg px-4 py-2 text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
                         isCompleted
                           ? 'border border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700'
-                          : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                          : startingId === a.id 
+                            ? 'bg-emerald-600/50 text-white/50 cursor-not-allowed'
+                            : 'bg-emerald-600 text-white hover:bg-emerald-500'
                       }`}
                     >
-                      {isCompleted ? 'View submissions' : rawStatus === 'not_started' ? 'Start test' : 'Continue test'}
+                      {startingId === a.id ? (
+                        <>
+                          <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10" strokeDasharray="64" strokeDashoffset="48" /><path d="M12 2a10 10 0 0 1 10 10" /></svg>
+                          Starting…
+                        </>
+                      ) : isCompleted ? (
+                        'View submissions'
+                      ) : (
+                        rawStatus === 'not_started' ? 'Start test' : 'Continue test'
+                      )}
                     </button>
                   </div>
                 );

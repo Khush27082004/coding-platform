@@ -1,5 +1,6 @@
 import prisma from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
+import { cache } from '../../utils/cache';
 
 export class QuestionsService {
   async create(data: any, userId: string) {
@@ -73,6 +74,10 @@ export class QuestionsService {
   }
 
   async findById(id: string, includeHidden = false) {
+    const cacheKey = `question:${id}:${includeHidden ? 'admin' : 'public'}`;
+    const cached = await cache.get<any>(cacheKey);
+    if (cached) return cached;
+
     const question = await prisma.question.findUnique({
       where: { id },
       include: {
@@ -87,50 +92,45 @@ export class QuestionsService {
       throw new AppError(404, 'QUESTION_NOT_FOUND', 'Question not found');
     }
 
+    await cache.set(cacheKey, question, 3600); // 1 hour
     return question;
   }
 
   async update(id: string, data: any) {
-    const { testCases, ...updateData } = data;
-
-    // Update question fields
-    const question = await prisma.question.update({
-      where: { id },
-      data: updateData,
-      include: {
-        testCases: true,
-      },
-    });
-
-    // If testCases are provided, update them
-    if (testCases && testCases.length > 0) {
-      // Delete old test cases
-      await prisma.testCase.deleteMany({
-        where: { questionId: id },
+    // ... existing logic ...
+    const updated = await prisma.$transaction(async (tx) => {
+      const { testCases, ...updateData } = data;
+      const q = await tx.question.update({
+        where: { id },
+        data: updateData,
+        include: { testCases: true },
       });
 
-      // Create new test cases
-      await prisma.testCase.createMany({
-        data: testCases.map((tc: any, index: number) => ({
-          questionId: id,
-          input: tc.input,
-          expectedOutput: tc.expectedOutput,
-          isHidden: tc.isHidden || false,
-          points: tc.points || 10,
-          orderIndex: index + 1,
-        })),
-      });
-    }
+      if (testCases && testCases.length > 0) {
+        await tx.testCase.deleteMany({ where: { questionId: id } });
+        await tx.testCase.createMany({
+          data: testCases.map((tc: any, index: number) => ({
+            questionId: id,
+            input: tc.input,
+            expectedOutput: tc.expectedOutput,
+            isHidden: tc.isHidden || false,
+            points: tc.points || 10,
+            orderIndex: index + 1,
+          })),
+        });
+      }
 
-    // Fetch updated question with test cases
-    const updatedQuestion = await prisma.question.findUnique({
-      where: { id },
-      include: {
-        testCases: true,
-      },
+      return await tx.question.findUnique({
+        where: { id },
+        include: { testCases: true },
+      });
     });
 
-    return updatedQuestion;
+    // Invalidate Cache
+    await cache.del(`question:${id}:public`);
+    await cache.del(`question:${id}:admin`);
+
+    return updated;
   }
 
   async delete(id: string) {
@@ -138,5 +138,8 @@ export class QuestionsService {
       where: { id },
       data: { isActive: false },
     });
+    // Invalidate Cache
+    await cache.del(`question:${id}:public`);
+    await cache.del(`question:${id}:admin`);
   }
 }
