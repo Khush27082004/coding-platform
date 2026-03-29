@@ -11,6 +11,7 @@ import authRoutes from './modules/auth/auth.routes';
 import questionsRoutes from './modules/questions/questions.routes';
 import assessmentsRoutes from './modules/assessments/assessments.routes';
 import submissionsRoutes from './modules/submissions/submissions.routes';
+import adminRoutes from './modules/admin/admin.routes';
 
 const app = express();
 
@@ -59,6 +60,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/questions', questionsRoutes);
 app.use('/api/v1/assessments', assessmentsRoutes);
 app.use('/api/v1/submissions', submissionsRoutes);
+app.use('/api/v1/admin', adminRoutes);
 
 // 404 handler
 app.use(notFound);
