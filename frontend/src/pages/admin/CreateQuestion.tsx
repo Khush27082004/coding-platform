@@ -25,6 +25,7 @@ export const CreateQuestion = () => {
     starterCodeJava: '',
     starterCodeCpp: '',
     starterCodeC: '',
+    isActive: true,
   });
 
   const [testCases, setTestCases] = useState([
@@ -59,6 +60,7 @@ export const CreateQuestion = () => {
         starterCodeJava: q.starterCodeJava || '',
         starterCodeCpp: q.starterCodeCpp || '',
         starterCodeC: q.starterCodeC || '',
+        isActive: q.isActive ?? true,
       });
       setTestCases(q.testCases || [{ input: '', expectedOutput: '', isHidden: false, points: 10 }]);
     } catch (error) {
@@ -87,6 +89,7 @@ export const CreateQuestion = () => {
         starterCodeJava: formData.starterCodeJava,
         starterCodeCpp: formData.starterCodeCpp,
         starterCodeC: formData.starterCodeC,
+        isActive: formData.isActive,
         testCases: testCases.map(tc => ({
           input: tc.input,
           expectedOutput: tc.expectedOutput,
@@ -235,6 +238,26 @@ export const CreateQuestion = () => {
                   placeholder="e.g. Arrays, Sorting, Two Pointers (comma separated)"
                   className={inputClass}
                 />
+              </div>
+
+              {/* Active Toggle for Question */}
+              <div className="pt-6 border-t border-slate-100">
+                <label className={`flex items-center gap-3 p-4 border rounded-xl transition-all cursor-pointer ${formData.isActive ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-slate-200 bg-white hover:border-slate-300'}`}>
+                  <div className="relative flex items-center">
+                    <input
+                      type="checkbox"
+                      className="sr-only"
+                      checked={formData.isActive}
+                      onChange={e => setFormData({...formData, isActive: e.target.checked})}
+                    />
+                    <div className={`w-10 h-6 bg-slate-200 rounded-full transition-colors ${formData.isActive ? 'bg-emerald-500' : ''}`}></div>
+                    <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${formData.isActive ? 'translate-x-4' : ''}`}></div>
+                  </div>
+                  <div>
+                    <div className="text-sm font-bold text-slate-900 leading-none">Question Active</div>
+                    <div className="text-xs text-slate-500 mt-1.5">If inactive, this question will be hidden from the practice pool and assessment picker.</div>
+                  </div>
+                </label>
               </div>
             </div>
           </section>

@@ -83,7 +83,7 @@ export const Assessments = () => {
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [selQIds, setSelQIds] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ title: '', description: '', duration: 60, passingScore: 50 });
+  const [form, setForm] = useState({ title: '', description: '', duration: 60, passingScore: 50, isActive: true });
 
   // edit modal
   const [showEdit, setShowEdit] = useState(false);
@@ -149,7 +149,7 @@ export const Assessments = () => {
         questions: selQIds.map(id => ({ questionId: id, points: 100 })),
       });
       setShowCreate(false);
-      setForm({ title: '', description: '', duration: 60, passingScore: 50 });
+      setForm({ title: '', description: '', duration: 60, passingScore: 50, isActive: true });
       setSelQIds([]);
       loadAssessments();
     } catch { alert('Failed to create. Check console.'); }
@@ -463,6 +463,26 @@ export const Assessments = () => {
               </div>
             </div>
 
+            {/* Active Toggle for Create */}
+            <div className="pt-2">
+              <label className={`flex items-center gap-3 p-4 border rounded-xl transition-all cursor-pointer ${form.isActive ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'}`}>
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    className="sr-only"
+                    checked={form.isActive}
+                    onChange={e => setForm(p => ({ ...p, isActive: e.target.checked }))}
+                  />
+                  <div className={`w-10 h-6 bg-slate-800 rounded-full transition-colors ${form.isActive ? 'bg-emerald-500' : ''}`}></div>
+                  <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${form.isActive ? 'translate-x-4' : ''}`}></div>
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white leading-none">Assessment Active</div>
+                  <div className="text-xs text-slate-500 mt-1">If active, candidates can view and start this test.</div>
+                </div>
+              </label>
+            </div>
+
             <button
               type="submit"
               disabled={creating}
@@ -579,7 +599,7 @@ export const Assessments = () => {
 
             {/* Active Toggle */}
             <div className="pt-2">
-              <label className="flex items-center gap-3 p-4 border border-slate-700 rounded-xl bg-slate-900/50 cursor-pointer hover:border-slate-600 transition-colors">
+              <label className={`flex items-center gap-3 p-4 border rounded-xl transition-all cursor-pointer ${editForm.isActive ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'}`}>
                 <div className="relative flex items-center">
                   <input
                     type="checkbox"
