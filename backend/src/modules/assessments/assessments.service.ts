@@ -35,17 +35,13 @@ export class AssessmentsService {
 
     if (role === 'candidate' && userId) {
       return prisma.assessment.findMany({
-        where: {
-          ...where,
-          userAssessments: {
-            some: { userId },
-          },
-        },
+        where: { isActive: true },
         include: {
           userAssessments: {
             where: { userId },
           },
         },
+        orderBy: { createdAt: 'desc' },
       });
     }
 
@@ -106,7 +102,7 @@ export class AssessmentsService {
   }
 
   async startAssessment(assessmentId: string, userId: string) {
-    const userAssessment = await prisma.userAssessment.findUnique({
+    let userAssessment = await prisma.userAssessment.findUnique({
       where: {
         userId_assessmentId: { userId, assessmentId },
       },
@@ -131,7 +127,41 @@ export class AssessmentsService {
     });
 
     if (!userAssessment) {
-      throw new AppError(404, 'ASSESSMENT_NOT_ASSIGNED', 'Assessment not assigned to user');
+      const assessmentData = await prisma.assessment.findUnique({
+        where: { id: assessmentId }
+      });
+      if (!assessmentData) {
+        throw new AppError(404, 'ASSESSMENT_NOT_FOUND', 'Assessment not found');
+      }
+
+      await prisma.userAssessment.create({
+        data: {
+          userId,
+          assessmentId,
+          maxScore: assessmentData.totalScore || 0,
+        }
+      });
+
+      // Refetch with all nesting
+      userAssessment = (await prisma.userAssessment.findUnique({
+        where: { userId_assessmentId: { userId, assessmentId } },
+        include: {
+          assessment: {
+            include: {
+              assessmentQuestions: {
+                include: {
+                  question: {
+                    include: {
+                      testCases: { where: { isHidden: false } }
+                    }
+                  }
+                },
+                orderBy: { orderIndex: 'asc' }
+              }
+            }
+          }
+        }
+      }))!;
     }
 
     if (userAssessment.status !== 'not_started') {
