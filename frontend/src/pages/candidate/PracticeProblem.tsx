@@ -26,6 +26,7 @@ export const PracticeProblem = () => {
   const [customInput, setCustomInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [runCooldown, setRunCooldown] = useState(0);
   const [testCaseResults, setTestCaseResults] = useState<any[]>([]);
   const [passedTests, setPassedTests] = useState(0);
   const [totalTests, setTotalTests] = useState(0);
@@ -56,6 +57,17 @@ export const PracticeProblem = () => {
       fetchQuestion();
     }
   }, [id, userAssessmentId]);
+
+  // ─── EFFECTS ─────────────────────────────────────────────────────────────
+  useEffect(() => {
+    let timer: any;
+    if (runCooldown > 0) {
+      timer = setInterval(() => {
+        setRunCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+      }, 1000);
+    }
+    return () => clearInterval(timer);
+  }, [runCooldown]);
 
   // Tab switch detection for assessments
   useEffect(() => {
@@ -197,6 +209,8 @@ export const PracticeProblem = () => {
   };
 
   const runCode = async () => {
+    if (runCooldown > 0) return;
+    setRunCooldown(7);
     setLoading(true);
     setOutput('Running...');
     setActiveTab('results');
@@ -211,6 +225,8 @@ export const PracticeProblem = () => {
   };
 
   const runAllTestCases = async () => {
+    if (runCooldown > 0) return;
+    setRunCooldown(7);
     setLoading(true);
     setOutput('Running all test cases...');
     setActiveTab('results');
@@ -231,7 +247,12 @@ export const PracticeProblem = () => {
   };
 
   const submitSolution = async () => {
+    if (runCooldown > 0) return;
     const userAssessmentId = new URLSearchParams(window.location.search).get('userAssessmentId');
+
+    // For assessment, set cooldown immediately
+    if (userAssessmentId) setRunCooldown(7);
+    else setRunCooldown(3); // shorter for practice
 
     // No assessment context → persist as a practice submission
     if (!userAssessmentId) {
@@ -620,37 +641,53 @@ export const PracticeProblem = () => {
         <div className="flex items-center gap-2 ml-2">
           <button
             onClick={runCode}
-            disabled={loading}
-            className="flex items-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all shadow-sm"
+            disabled={loading || runCooldown > 0}
+            className={`flex items-center gap-1.5 transition-all shadow-sm px-3 py-1.5 rounded-md text-[11px] font-bold ${
+              runCooldown > 0 
+                ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed' 
+                : 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40'
+            }`}
           >
-            {loading ? (
+            {(loading || runCooldown > 0) ? (
               <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><path d="M12 2a10 10 0 0 1 10 10" /></svg>
             ) : (
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
             )}
-            Run
+            {runCooldown > 0 ? `Wait ${runCooldown}s` : 'Run'}
           </button>
           {!userAssessmentId && (
             <button
               onClick={runAllTestCases}
-              disabled={loading}
-              className="flex items-center gap-1.5 bg-zinc-100 text-zinc-900 hover:bg-zinc-200 disabled:opacity-40 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all shadow-sm border border-zinc-200"
+              disabled={loading || runCooldown > 0}
+              className={`flex items-center gap-1.5 transition-all shadow-sm px-3 py-1.5 rounded-md text-[11px] font-bold border ${
+                runCooldown > 0 
+                  ? 'bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed' 
+                  : 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200 disabled:opacity-40 border-zinc-200'
+              }`}
             >
-              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-              Run tests
+              {(loading || runCooldown > 0) ? (
+                <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><path d="M12 2a10 10 0 0 1 10 10" /></svg>
+              ) : (
+                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+              )}
+              {runCooldown > 0 ? `Wait ${runCooldown}s` : 'Run tests'}
             </button>
           )}
           <button
             onClick={submitSolution}
-            disabled={submitting || loading}
-            className="flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-700 disabled:opacity-40 text-white px-4 py-1.5 rounded-md text-[11px] font-bold transition-all shadow-sm"
+            disabled={submitting || loading || runCooldown > 0}
+            className={`flex items-center gap-1.5 transition-all shadow-sm px-4 py-1.5 rounded-md text-[11px] font-bold ${
+              runCooldown > 0 
+                ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed' 
+                : 'bg-zinc-900 hover:bg-zinc-700 disabled:opacity-40 text-white'
+            }`}
           >
-            {submitting ? (
+            {(submitting || runCooldown > 0) ? (
               <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><path d="M12 2a10 10 0 0 1 10 10" /></svg>
             ) : (
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12" /></svg>
             )}
-            Submit
+            {runCooldown > 0 ? `Wait ${runCooldown}s` : 'Submit'}
           </button>
         </div>
       </header>
