@@ -191,6 +191,11 @@ export const PracticeProblem = () => {
   };
 
   const fetchAssessment = async () => {
+    // Clear old question data to prevent stale UI
+    setQuestion(null);
+    setTestCaseResults([]);
+    setOutput('');
+    
     // If we have initial state, we don't need the 'Loading problem' full screen spinner
     if (!location.state?.initialUserAssessment) {
       setLoading(true);
@@ -206,11 +211,15 @@ export const PracticeProblem = () => {
 
       setQuestion(q);
       setCustomInput(q.sampleInput || '');
+      
+      // Only set generic starter code if no work has been done yet
+      // Progress will be loaded later in fetchSavedProgress
       if (!code) setCode(getStarterCode(q, language));
+      
       setUserAssessment(ua);
       setSwitchCount(ua.tabSwitches || 0);
 
-      // Load saved progress
+      // Load saved progress for the NEW question ID
       await fetchSavedProgress(ua.id, id!);
 
       const startTime = new Date(ua.startedAt).getTime();
@@ -226,6 +235,10 @@ export const PracticeProblem = () => {
   };
 
   const fetchQuestion = async () => {
+    setQuestion(null);
+    setTestCaseResults([]);
+    setOutput('');
+    
     if (!location.state?.initialQuestion) {
       setLoading(true);
     }
@@ -743,8 +756,10 @@ export const PracticeProblem = () => {
                  const currentIndex = aqs.findIndex((aq:any) => aq.questionId === id);
                  if (currentIndex > 0) {
                    const prevId = aqs[currentIndex - 1].questionId;
+                   // Reset question-specific states for instantaneous feedback
+                   setQuestion(null);
+                   setTestCaseResults([]);
                    navigate(`/practice/${prevId}?userAssessmentId=${userAssessmentId}`);
-                   window.location.reload(); // Force reload to trigger all effects with new ID
                  }
                }}
                className="p-1.5 hover:bg-zinc-100 disabled:opacity-30 rounded-md transition-colors"
@@ -759,8 +774,10 @@ export const PracticeProblem = () => {
                  const currentIndex = aqs.findIndex((aq:any) => aq.questionId === id);
                  if (currentIndex !== -1 && currentIndex < aqs.length - 1) {
                    const nextId = aqs[currentIndex + 1].questionId;
+                   // Reset question-specific states for instantaneous feedback
+                   setQuestion(null);
+                   setTestCaseResults([]);
                    navigate(`/practice/${nextId}?userAssessmentId=${userAssessmentId}`);
-                   window.location.reload(); // Force reload to trigger all effects with new ID
                  }
                }}
                className="p-1.5 hover:bg-zinc-100 disabled:opacity-30 rounded-md transition-colors"
