@@ -79,6 +79,53 @@ export class AssessmentsService {
     return assessment;
   }
 
+  async update(id: string, data: any) {
+    const { title, description, duration, passingScore, isActive, questions } = data;
+    
+    const assessment = await prisma.assessment.findUnique({ where: { id } });
+    if (!assessment) {
+      throw new AppError(404, 'ASSESSMENT_NOT_FOUND', 'Assessment not found');
+    }
+
+    const finalIsActive = isActive !== undefined ? isActive : assessment.isActive;
+
+    if (questions && finalIsActive) {
+      throw new AppError(400, 'CANNOT_EDIT_QUESTIONS_WHILE_ACTIVE', 'Cannot modify assessment questions while it is active.');
+    }
+
+    return await prisma.$transaction(async (tx) => {
+      let currentTotalScore = assessment.totalScore || 0;
+
+      if (questions) {
+        await tx.assessmentQuestion.deleteMany({ where: { assessmentId: id } });
+        
+        if (questions.length > 0) {
+          await tx.assessmentQuestion.createMany({
+            data: questions.map((q: any, i: number) => ({
+              assessmentId: id,
+              questionId: q.questionId,
+              points: q.points || 100,
+              orderIndex: i + 1,
+            }))
+          });
+        }
+        currentTotalScore = questions.reduce((sum: number, q: any) => sum + (q.points || 100), 0);
+      }
+
+      return await tx.assessment.update({
+        where: { id },
+        data: {
+          title: title !== undefined ? title : assessment.title,
+          description: description !== undefined ? description : assessment.description,
+          duration: duration !== undefined ? duration : assessment.duration,
+          passingScore: passingScore !== undefined ? passingScore : assessment.passingScore,
+          isActive: finalIsActive,
+          totalScore: currentTotalScore,
+        },
+      });
+    });
+  }
+
   async assignToUsers(assessmentId: string, userIds: string[]) {
     const assessment = await prisma.assessment.findUnique({
       where: { id: assessmentId },

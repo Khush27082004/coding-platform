@@ -11,6 +11,7 @@ router.post('/', authorize('admin'), controller.create);
 router.get('/', controller.getAll);
 router.get('/:id', controller.getById);
 router.get('/:id/results', authorize('admin'), controller.getResults);
+router.put('/:id', authorize('admin'), controller.update);
 router.post('/:id/assign', authorize('admin'), controller.assign);
 router.post('/:id/start', controller.start);
 router.patch('/:id/tab-switch', controller.updateTabSwitches);

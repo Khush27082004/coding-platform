@@ -32,6 +32,15 @@ export class AssessmentsController {
     }
   }
 
+  async update(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const updated = await service.update(req.params.id, req.body);
+      res.json({ success: true, data: updated });
+    } catch (error) {
+      next(error);
+    }
+  }
+
   async getResults(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const results = await service.getResults(req.params.id);
