@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
-import { Assessment, Question, User } from '../../types';
+import { Assessment, Question } from '../../types';
 
 type ResultRow = {
   userAssessmentId: string;
@@ -85,17 +85,26 @@ export const Assessments = () => {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', duration: 60, passingScore: 50 });
 
-  // assign modal
-  const [showAssign, setShowAssign] = useState(false);
-  const [assignTarget, setAssignTarget] = useState<Assessment | null>(null);
-  const [candidates, setCandidates] = useState<User[]>([]);
-  const [selUserIds, setSelUserIds] = useState<string[]>([]);
-  const [assigning, setAssigning] = useState(false);
+  // edit modal
+  const [showEdit, setShowEdit] = useState(false);
+  const [editTarget, setEditTarget] = useState<Assessment | null>(null);
+  const [editSelQIds, setEditSelQIds] = useState<string[]>([]);
+  const [editing, setEditing] = useState(false);
+  const [loadingQuestions, setLoadingQuestions] = useState(false);
+  const [editForm, setEditForm] = useState({ title: '', description: '', duration: 60, passingScore: 50, isActive: true });
 
   useEffect(() => {
-    loadAssessments();
-    loadQuestions();
-    loadCandidates();
+    const init = async () => {
+      setLoading(true);
+      try {
+        await Promise.all([loadAssessments(), loadQuestions()]);
+      } catch (err) {
+        console.error('Initial load failed', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
   }, []);
 
   const loadAssessments = async () => {
@@ -104,8 +113,6 @@ export const Assessments = () => {
       setAssessments(r.data.data ?? []);
     } catch {
       /* ignore */
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -113,13 +120,6 @@ export const Assessments = () => {
     try {
       const r = await api.get('/questions');
       setAllQuestions(r.data.data ?? []);
-    } catch {/* */}
-  };
-
-  const loadCandidates = async () => {
-    try {
-      const r = await api.get('/auth/users');
-      setCandidates(r.data.data ?? []);
     } catch {/* */}
   };
 
@@ -156,29 +156,54 @@ export const Assessments = () => {
     finally { setCreating(false); }
   };
 
-  const openAssign = (a: Assessment) => {
-    setAssignTarget(a);
-    setSelUserIds([]);
-    setShowAssign(true);
+  const openEdit = async (a: Assessment) => {
+    setEditTarget(a);
+    setEditForm({
+      title: a.title || '',
+      description: a.description || '',
+      duration: a.duration || 60,
+      passingScore: a.passingScore || 0,
+      isActive: a.isActive ?? true,
+    });
+    setEditSelQIds([]);
+    setLoadingQuestions(true);
+    setShowEdit(true);
+
+    try {
+      const r = await api.get(`/assessments/${a.id}`);
+      const aqs = r.data.data.assessmentQuestions || [];
+      setEditSelQIds(aqs.map((aq: any) => aq.questionId));
+    } catch {
+      setEditSelQIds([]);
+    } finally {
+      setLoadingQuestions(false);
+    }
   };
 
-  const handleAssign = async () => {
-    if (!assignTarget || !selUserIds.length) return;
-    setAssigning(true);
+  const handleEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+    setEditing(true);
     try {
-      await api.post(`/assessments/${assignTarget.id}/assign`, { userIds: selUserIds });
-      setShowAssign(false);
-      // refresh scoreboard if open
-      if (expandedId === assignTarget.id) loadResults(assignTarget.id);
-    } catch { alert('Assignment failed.'); }
-    finally { setAssigning(false); }
+      await api.put(`/assessments/${editTarget.id}`, {
+        ...editForm,
+        questions: editSelQIds.map(id => ({ questionId: id, points: 100 })),
+      });
+      setShowEdit(false);
+      loadAssessments();
+    } catch (err: any) { 
+      alert(err.response?.data?.error?.message || 'Edit failed. Check console.'); 
+    }
+    finally { setEditing(false); }
   };
 
   const toggleQ = (id: string) =>
     setSelQIds(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id]));
 
-  const toggleU = (id: string) =>
-    setSelUserIds(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id]));
+  const toggleEditQ = (id: string) => {
+    if (editForm.isActive) return;
+    setEditSelQIds(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id]));
+  };
 
   // ─── render ─────────────────────────────────────────────────────────────────
   return (
@@ -241,11 +266,22 @@ export const Assessments = () => {
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
+                    {a.isActive !== false ? (
+                      <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 flex items-center h-[34px] rounded-lg text-[10px] font-bold uppercase tracking-widest leading-none shadow-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
+                        Active
+                      </span>
+                    ) : (
+                      <span className="bg-slate-800/80 text-slate-400 border border-slate-700 px-2 py-1 flex items-center h-[34px] rounded-lg text-[10px] font-bold uppercase tracking-widest leading-none shadow-sm">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-500 mr-1.5"></span>
+                        Inactive
+                      </span>
+                    )}
                     <button
-                      onClick={() => openAssign(a)}
+                      onClick={() => openEdit(a)}
                       className="text-sm font-bold px-4 py-2 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 hover:border-slate-600 transition-all"
                     >
-                      Assign Students
+                      Edit
                     </button>
                     <button
                       onClick={() => toggleScoreboard(a.id)}
@@ -267,13 +303,7 @@ export const Assessments = () => {
                       <div className="py-10 text-center text-slate-600 animate-pulse">Loading results…</div>
                     ) : !results[a.id] || results[a.id].rows.length === 0 ? (
                       <div className="py-10 text-center">
-                        <p className="text-slate-500">No candidates assigned yet.</p>
-                        <button
-                          onClick={() => openAssign(a)}
-                          className="mt-3 text-indigo-400 hover:text-indigo-300 text-sm font-bold"
-                        >
-                          Assign now →
-                        </button>
+                        <p className="text-slate-500">No candidates have started this assessment yet.</p>
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
@@ -444,44 +474,138 @@ export const Assessments = () => {
         </Modal>
       )}
 
-      {/* ── Assign Students Modal ──────────────────────────────────────────── */}
-      {showAssign && assignTarget && (
-        <Modal title={`Assign: ${assignTarget.title}`} onClose={() => setShowAssign(false)}>
-          <div className="p-6 space-y-3">
-            {candidates.length === 0 ? (
-              <p className="text-center text-slate-500 py-6 text-sm">No candidates registered yet.</p>
-            ) : (
-              candidates.map(u => {
-                const sel = selUserIds.includes(u.id);
-                return (
-                  <div
-                    key={u.id}
-                    onClick={() => toggleU(u.id)}
-                    className={`flex items-center justify-between p-4 rounded-xl border cursor-pointer transition-all ${
-                      sel ? 'bg-indigo-600/10 border-indigo-500/40' : 'bg-slate-900 border-slate-800 hover:border-slate-700'
-                    }`}
-                  >
-                    <div>
-                      <div className="font-semibold text-white text-sm">{u.fullName}</div>
-                      <div className="text-xs text-slate-500">{u.email}</div>
-                    </div>
-                    <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${sel ? 'bg-indigo-600 border-indigo-600' : 'border-slate-700'}`}>
-                      {sel && <span className="text-white text-[10px]">✓</span>}
-                    </div>
+      {/* ── Edit Assessment Modal ──────────────────────────────────────────── */}
+      {showEdit && editTarget && (
+        <Modal title={`Edit: ${editTarget.title}`} onClose={() => setShowEdit(false)}>
+          <form onSubmit={handleEdit} className="p-6 space-y-5">
+            {/* Title */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                Title *
+              </label>
+              <input
+                required
+                value={editForm.title}
+                onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+              />
+            </div>
+
+            {/* Description */}
+            <div>
+              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                Description
+              </label>
+              <textarea
+                rows={2}
+                value={editForm.description}
+                onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
+                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors resize-none"
+              />
+            </div>
+
+            {/* Duration + Passing Score */}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  Duration (min)
+                </label>
+                <input
+                  type="number"
+                  min={5}
+                  value={editForm.duration}
+                  onChange={e => setEditForm(p => ({ ...p, duration: parseInt(e.target.value) || 60 }))}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                  Passing Score
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={editForm.passingScore}
+                  onChange={e => setEditForm(p => ({ ...p, passingScore: parseInt(e.target.value) || 0 }))}
+                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            {/* Question picker for Edit */}
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                  Questions
+                </label>
+                <span className="text-xs text-slate-600">
+                  {loadingQuestions ? 'Loading…' : `${editSelQIds.length} selected`}
+                </span>
+              </div>
+              <div className={`bg-slate-900 border ${editForm.isActive || loadingQuestions ? 'border-slate-800 opacity-60' : 'border-slate-700'} rounded-xl overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-800`}>
+                {loadingQuestions ? (
+                  <div className="px-4 py-8 text-center">
+                    <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+                    <p className="text-slate-500 text-xs">Fetching current questions…</p>
                   </div>
-                );
-              })
-            )}
-          </div>
-          <div className="px-6 pb-6">
+                ) : allQuestions.length === 0 ? (
+                  <p className="px-4 py-6 text-center text-slate-600 text-sm">No questions found.</p>
+                ) : (
+                  allQuestions.map(q => {
+                    const sel = editSelQIds.includes(q.id);
+                    return (
+                      <div
+                        key={q.id}
+                        onClick={() => toggleEditQ(q.id)}
+                        className={`flex items-center justify-between px-4 py-3 ${editForm.isActive || loadingQuestions ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-slate-800'} transition-colors ${sel && !editForm.isActive && !loadingQuestions ? 'bg-indigo-600/10' : ''}`}
+                      >
+                        <div>
+                          <span className="text-sm font-semibold text-slate-200">{q.title}</span>
+                        </div>
+                        <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${sel ? 'bg-indigo-600 border-indigo-600' : 'border-slate-700'}`}>
+                          {sel && <span className="text-white text-[10px]">✓</span>}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+              {editForm.isActive && !loadingQuestions && (
+                <p className="text-[10px] text-amber-500/80 mt-1.5">
+                  🔒 Questions are locked while the test is Active. Switch to Inactive to re-enable editing.
+                </p>
+              )}
+            </div>
+
+            {/* Active Toggle */}
+            <div className="pt-2">
+              <label className="flex items-center gap-3 p-4 border border-slate-700 rounded-xl bg-slate-900/50 cursor-pointer hover:border-slate-600 transition-colors">
+                <div className="relative flex items-center">
+                  <input
+                    type="checkbox"
+                    disabled={loadingQuestions}
+                    className="sr-only"
+                    checked={editForm.isActive}
+                    onChange={e => setEditForm(p => ({ ...p, isActive: e.target.checked }))}
+                  />
+                  <div className={`w-10 h-6 bg-slate-800 rounded-full transition-colors ${editForm.isActive ? 'bg-emerald-500' : ''}`}></div>
+                  <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${editForm.isActive ? 'translate-x-4' : ''}`}></div>
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-white leading-none">Assessment Active</div>
+                  <div className="text-xs text-slate-500 mt-1">If active, candidates can view and start this test.</div>
+                </div>
+              </label>
+            </div>
+
             <button
-              onClick={handleAssign}
-              disabled={assigning || selUserIds.length === 0}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20"
+              type="submit"
+              disabled={editing || loadingQuestions}
+              className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20"
             >
-              {assigning ? 'Assigning…' : `Assign to ${selUserIds.length || ''} Student${selUserIds.length !== 1 ? 's' : ''}`}
+              {editing ? 'Saving…' : loadingQuestions ? 'Loading…' : 'Save Changes'}
             </button>
-          </div>
+          </form>
         </Modal>
       )}
     </div>

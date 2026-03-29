@@ -8,7 +8,6 @@ import { Questions } from './pages/admin/Questions';
 import { CreateQuestion } from './pages/admin/CreateQuestion';
 import { Assessments } from './pages/admin/Assessments';
 
-import { TakeTest } from './pages/candidate/TakeTest';
 import { Practice } from './pages/candidate/Practice';
 import { PracticeProblem } from './pages/candidate/PracticeProblem';
 import { Submissions } from './pages/candidate/Submissions';
@@ -46,8 +45,8 @@ function AppRoutes() {
 
 
         <Route path="/assessments" element={<PrivateRoute><Navigate to="/" replace /></PrivateRoute>} />
-        <Route path="/assessment/:id/start" element={<PrivateRoute><TakeTest /></PrivateRoute>} />
-        <Route path="/assessment/:id/continue" element={<PrivateRoute><TakeTest /></PrivateRoute>} />
+        <Route path="/assessment/:id/start" element={<Navigate to="/" replace />} />
+        <Route path="/assessment/:id/continue" element={<Navigate to="/" replace />} />
         <Route path="/practice" element={<PrivateRoute><Practice /></PrivateRoute>} />
         <Route path="/practice/:id" element={<PrivateRoute><PracticeProblem /></PrivateRoute>} />
         <Route path="/submissions" element={<PrivateRoute><Submissions /></PrivateRoute>} />

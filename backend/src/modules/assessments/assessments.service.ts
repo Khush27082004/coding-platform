@@ -34,9 +34,16 @@ export class AssessmentsService {
     if (role === 'candidate' && userId) {
       return prisma.assessment.findMany({
         where: { isActive: true },
-        include: {
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          duration: true,
+          totalScore: true,
+          isActive: true,
           userAssessments: {
             where: { userId },
+            select: { status: true, score: true }
           },
         },
         orderBy: { createdAt: 'desc' },
@@ -110,19 +117,18 @@ export class AssessmentsService {
       let currentTotalScore = assessment.totalScore || 0;
 
       if (questions && questionsChanged) {
+        // Delete old relations first
         await tx.assessmentQuestion.deleteMany({ where: { assessmentId: id } });
         
-        for (let i = 0; i < questions.length; i++) {
-          const q = questions[i];
-          await tx.assessmentQuestion.create({
-            data: {
-              assessmentId: id,
-              questionId: q.questionId,
-              points: q.points || 100,
-              orderIndex: i + 1,
-            }
-          });
-        }
+        // Create new relations in bulk
+        await tx.assessmentQuestion.createMany({
+          data: questions.map((q: any, i: number) => ({
+            assessmentId: id,
+            questionId: q.questionId,
+            points: q.points || 100,
+            orderIndex: i + 1,
+          }))
+        });
         currentTotalScore = questions.reduce((sum: number, q: any) => sum + (q.points || 100), 0);
       }
 

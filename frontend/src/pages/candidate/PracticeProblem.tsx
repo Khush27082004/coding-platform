@@ -36,16 +36,53 @@ export const PracticeProblem = () => {
   const [activeTab, setActiveTab] = useState<'description' | 'results'>('description');
   const [timeLeft, setTimeLeft] = useState(() => {
     const saved = localStorage.getItem(`practice_timer_${id}`);
-    return saved !== null ? parseInt(saved, 10) : 1800; // 30 minutes countdown start
+    return saved !== null ? parseInt(saved, 10) : 1800;
   });
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Evaluation overlay
   const [evalOverlay, setEvalOverlay] = useState<EvalState | null>(null);
 
+  // Assessment Mode
+  const queryParams = new URLSearchParams(window.location.search);
+  const userAssessmentId = queryParams.get('userAssessmentId');
+  const [userAssessment, setUserAssessment] = useState<any>(null);
+  const [switchCount, setSwitchCount] = useState(0);
+
   useEffect(() => {
-    fetchQuestion();
-  }, [id]);
+    if (userAssessmentId) {
+      fetchAssessment();
+    } else {
+      fetchQuestion();
+    }
+  }, [id, userAssessmentId]);
+
+  // Tab switch detection for assessments
+  useEffect(() => {
+    if (!userAssessmentId) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'hidden') {
+        const newCount = switchCount + 1;
+        setSwitchCount(newCount);
+        try {
+          await api.patch(`/assessments/${userAssessmentId}/tab-switch`);
+        } catch (err) {
+          console.error('Failed to log tab switch', err);
+        }
+
+        if (newCount === 1) {
+          alert('🚨 WARNING: Tab switching is NOT allowed during the assessment. Switching again will result in AUTOMATIC SUBMISSION.');
+        } else if (newCount >= 2) {
+          alert('🚫 MAXIMUM ATTEMPTS EXCEEDED: Your assessment is being submitted automatically due to multiple tab switches.');
+          submitSolution();
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [userAssessmentId, switchCount]);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -71,26 +108,63 @@ export const PracticeProblem = () => {
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
-        const newTime = prev > 0 ? prev - 1 : 0;
-        localStorage.setItem(`practice_timer_${id}`, newTime.toString());
+        if (prev <= 0) return 0;
+        const newTime = prev - 1;
+        if (!userAssessmentId) {
+          localStorage.setItem(`practice_timer_${id}`, newTime.toString());
+        }
         return newTime;
       });
     }, 1000);
     return () => clearInterval(timer);
-  }, [id]);
+  }, [id, userAssessmentId]);
+
+  const fetchAssessment = async () => {
+    setLoading(true);
+    try {
+      const [qRes, uaRes] = await Promise.all([
+        api.get(`/questions/${id}`),
+        api.get(`/user-assessments/${userAssessmentId}`)
+      ]);
+
+      const q = qRes.data.data;
+      const ua = uaRes.data.data;
+
+      setQuestion(q);
+      setCustomInput(q.sampleInput || '');
+      setCode(getStarterCode(q, language));
+      setUserAssessment(ua);
+      setSwitchCount(ua.tabSwitches || 0);
+
+      // Sync timer
+      const startTime = new Date(ua.startedAt).getTime();
+      const durationMs = ua.assessment.duration * 60 * 1000;
+      const elapsedMs = Date.now() - startTime;
+      const remainingSec = Math.max(0, Math.floor((durationMs - elapsedMs) / 1000));
+      setTimeLeft(remainingSec);
+    } catch (err) {
+      console.error("Failed to fetch assessment context", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchQuestion = async () => {
+    setLoading(true);
     try {
-      const res = await api.get(`/questions/${id}`);
-      setQuestion(res.data.data);
-      setCustomInput(res.data.data.sampleInput || '');
-      const starterCode = getStarterCode(res.data.data, language);
-      setCode(starterCode);
+      const [qRes, allRes] = await Promise.all([
+        api.get(`/questions/${id}`),
+        api.get('/questions')
+      ]);
+
+      const q = qRes.data.data;
+      setQuestion(q);
+      setCustomInput(q.sampleInput || '');
+      setCode(getStarterCode(q, language));
 
       // Find next question
-      const allRes = await api.get('/questions');
       const questions = allRes.data.data;
-      const currentIndex = questions.findIndex((q: any) => q.id === id);
+      const currentIndex = questions.findIndex((item: any) => item.id === id);
       if (currentIndex !== -1 && currentIndex + 1 < questions.length) {
         setNextQuestionId(questions[currentIndex + 1].id);
       } else {
@@ -98,6 +172,8 @@ export const PracticeProblem = () => {
       }
     } catch (error) {
       console.error('Failed to fetch question', error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -438,26 +514,45 @@ export const PracticeProblem = () => {
 
       {/* ── Top Navigation Bar ── */}
       <header className="h-14 bg-white border-b border-zinc-200 flex items-center px-4 gap-4 flex-shrink-0 z-10">
-        {/* Logo / Back */}
-        <a
-          href="/practice"
-          className="flex items-center gap-2 text-zinc-900 hover:text-zinc-600 transition-colors mr-2"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-          <span className="text-sm font-semibold">Problems</span>
-        </a>
+        {/* Logo / Back / Question Counter */}
+        {userAssessmentId ? (
+          <div className="flex items-center gap-3 mr-2">
+            <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center text-white font-bold text-xs shadow-sm">
+              {userAssessment?.assessment?.assessmentQuestions.findIndex((aq: any) => aq.questionId === id) + 1 || '?'}
+            </div>
+            <div>
+              <h1 className="text-xs font-bold text-zinc-900 leading-none truncate max-w-[120px]">
+                {userAssessment?.assessment?.title}
+              </h1>
+              <p className="text-[9px] text-zinc-500 mt-1 uppercase tracking-wider font-bold">
+                Assigned Test
+              </p>
+            </div>
+          </div>
+        ) : (
+          <a
+            href="/practice"
+            className="flex items-center gap-2 text-zinc-900 hover:text-zinc-600 transition-colors mr-2 text-sm font-semibold"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            Problems
+          </a>
+        )}
 
         <div className="h-5 w-px bg-zinc-200" />
 
         {/* Problem title */}
         <h1 className="text-sm font-semibold text-zinc-900 flex-1 truncate">{question.title}</h1>
 
-        {/* Difficulty badge */}
-        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold border ${diff.cls}`}>
-          {diff.label}
-        </span>
+        {/* Tab Switch Warning (for assessments) */}
+        {userAssessmentId && switchCount > 0 && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 border border-red-200 rounded-md text-red-600 text-[10px] font-bold">
+             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+             SWITCHES: {switchCount}
+          </div>
+        )}
 
         <div className="h-5 w-px bg-zinc-200" />
 
@@ -473,14 +568,43 @@ export const PracticeProblem = () => {
 
         <div className="h-5 w-px bg-zinc-200" />
 
+        {/* Assessment Navigation (Prev/Next) */}
+        {userAssessmentId && (
+          <div className="flex items-center gap-1 mr-2">
+            <button
+               disabled={userAssessment?.assessment?.assessmentQuestions.findIndex((aq:any) => aq.questionId === id) === 0}
+               onClick={() => {
+                 const idx = userAssessment?.assessment?.assessmentQuestions.findIndex((aq:any) => aq.questionId === id);
+                 const prevId = userAssessment?.assessment?.assessmentQuestions[idx-1]?.questionId;
+                 if (prevId) navigate(`/practice/${prevId}?userAssessmentId=${userAssessmentId}`);
+               }}
+               className="p-1.5 hover:bg-zinc-100 disabled:opacity-30 rounded-md transition-colors"
+            >
+              <svg className="w-4 h-4 text-zinc-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="15 18 9 12 15 6" /></svg>
+            </button>
+            <button
+               disabled={userAssessment?.assessment?.assessmentQuestions.findIndex((aq:any) => aq.questionId === id) === userAssessment?.assessment?.assessmentQuestions.length - 1}
+               onClick={() => {
+                 const idx = userAssessment?.assessment?.assessmentQuestions.findIndex((aq:any) => aq.questionId === id);
+                 const nextId = userAssessment?.assessment?.assessmentQuestions[idx+1]?.questionId;
+                 if (nextId) navigate(`/practice/${nextId}?userAssessmentId=${userAssessmentId}`);
+               }}
+               className="p-1.5 hover:bg-zinc-100 disabled:opacity-30 rounded-md transition-colors"
+            >
+              <svg className="w-4 h-4 text-zinc-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 18 15 12 9 6" /></svg>
+            </button>
+          </div>
+        )}
+
+        <div className="h-5 w-px bg-zinc-200" />
+
         {/* Language selector */}
         <div className="flex items-center gap-2">
-          <label className="text-xs text-zinc-500 font-medium">Language</label>
           <div className="relative">
             <select
               value={language}
               onChange={(e) => handleLanguageChange(e.target.value)}
-              className="appearance-none bg-zinc-900 text-white text-xs font-semibold pl-3 pr-8 py-1.5 rounded-md border border-zinc-700 hover:bg-zinc-800 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-zinc-400"
+              className="appearance-none bg-zinc-900 text-white text-[11px] font-bold pl-3 pr-8 py-1.5 rounded-md border border-zinc-700 hover:bg-zinc-800 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-zinc-400"
             >
               {Object.entries(langIcons).map(([lang, icon]) => (
                 <option key={lang} value={lang}>{icon} {lang.charAt(0).toUpperCase() + lang.slice(1)}</option>
@@ -497,7 +621,7 @@ export const PracticeProblem = () => {
           <button
             onClick={runCode}
             disabled={loading}
-            className="flex items-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 px-3 py-1.5 rounded-md text-xs font-semibold transition-all shadow-sm"
+            className="flex items-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all shadow-sm"
           >
             {loading ? (
               <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><path d="M12 2a10 10 0 0 1 10 10" /></svg>
@@ -506,18 +630,20 @@ export const PracticeProblem = () => {
             )}
             Run
           </button>
-          <button
-            onClick={runAllTestCases}
-            disabled={loading}
-            className="flex items-center gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40 px-3 py-1.5 rounded-md text-xs font-semibold transition-all shadow-sm"
-          >
-            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-            Run Test Cases
-          </button>
+          {!userAssessmentId && (
+            <button
+              onClick={runAllTestCases}
+              disabled={loading}
+              className="flex items-center gap-1.5 bg-zinc-100 text-zinc-900 hover:bg-zinc-200 disabled:opacity-40 px-3 py-1.5 rounded-md text-[11px] font-bold transition-all shadow-sm border border-zinc-200"
+            >
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+              Run tests
+            </button>
+          )}
           <button
             onClick={submitSolution}
             disabled={submitting || loading}
-            className="flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-700 disabled:opacity-40 text-white px-4 py-1.5 rounded-md text-xs font-semibold transition-all shadow-sm"
+            className="flex items-center gap-1.5 bg-zinc-900 hover:bg-zinc-700 disabled:opacity-40 text-white px-4 py-1.5 rounded-md text-[11px] font-bold transition-all shadow-sm"
           >
             {submitting ? (
               <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><path d="M12 2a10 10 0 0 1 10 10" /></svg>

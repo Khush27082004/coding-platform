@@ -7,19 +7,21 @@ export const Submissions = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchSubmissions();
-  }, []);
+    const fetchData = async () => {
+      try {
+        const [submissionsRes] = await Promise.all([
+          api.get('/submissions/history')
+        ]);
+        setSubmissions(submissionsRes.data.data || []);
+      } catch (error) {
+        console.error('Failed to fetch submissions', error);
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const fetchSubmissions = async () => {
-    try {
-      const res = await api.get('/submissions/history');
-      setSubmissions(res.data.data || []);
-    } catch (error) {
-      console.error('Failed to fetch submissions', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    fetchData();
+  }, []);
 
   const getStatusStyle = (status: string) => {
     switch (status) {

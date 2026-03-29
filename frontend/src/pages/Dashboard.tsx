@@ -115,10 +115,23 @@ export const Dashboard = () => {
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        if (isCompleted) navigate('/submissions');
-                        else if (rawStatus === 'not_started') navigate(`/assessment/${a.id}/start`);
-                        else navigate(`/assessment/${a.id}/continue`);
+                      onClick={async () => {
+                        if (isCompleted) {
+                          navigate('/submissions');
+                        } else {
+                          try {
+                            const res = await api.post(`/assessments/${a.id}/start`);
+                            const ua = res.data.data;
+                            const firstQ = ua.assessment.assessmentQuestions[0]?.questionId;
+                            if (firstQ) {
+                              navigate(`/practice/${firstQ}?userAssessmentId=${ua.id}`);
+                            } else {
+                              alert('This assessment has no questions.');
+                            }
+                          } catch (err: any) {
+                            alert(err.response?.data?.error?.message || 'Failed to initialize assessment');
+                          }
+                        }
                       }}
                       className={`mt-4 w-full sm:w-auto self-start rounded-lg px-4 py-2 text-sm font-semibold transition-colors ${
                         isCompleted

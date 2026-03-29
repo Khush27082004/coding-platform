@@ -31,6 +31,7 @@ export interface Assessment {
   totalScore: number;
   startTime?: string;
   endTime?: string;
+  isActive?: boolean;
 }
 
 export interface Submission {
