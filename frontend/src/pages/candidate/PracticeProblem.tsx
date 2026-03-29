@@ -53,35 +53,30 @@ export const PracticeProblem = () => {
   const [isInitializing, setIsInitializing] = useState(false);
 
   useEffect(() => {
-    // Instant initialization from dashboard state
-    if (location.state?.initialQuestion) {
-      const q = location.state.initialQuestion;
-      setQuestion(q);
-      setCustomInput(q.sampleInput || '');
-      setCode(getStarterCode(q, language));
-      if (location.state.initialUserAssessment) {
-        const ua = location.state.initialUserAssessment;
-        setUserAssessment(ua);
-        setSwitchCount(ua.tabSwitches || 0);
-        // Sync timer
-        const startTime = new Date(ua.startedAt).getTime();
-        const durationMs = ua.assessment.duration * 60 * 1000;
-        const elapsedMs = Date.now() - startTime;
-        const remainingSec = Math.max(0, Math.floor((durationMs - elapsedMs) / 1000));
-        setTimeLeft(remainingSec);
-        
-        // Show starting status for 1.5s
-        setIsInitializing(true);
-        setTimeout(() => setIsInitializing(false), 1500);
+    let ignore = false;
+    
+    const loadData = async () => {
+      // CLEAR ALL QUESTION-SPECIFIC STATE IMMEDIATELY
+      setQuestion(null);
+      setTestCaseResults([]);
+      setOutput('');
+      // Only reset code if we're not using initial location state
+      if (!location.state?.initialQuestion) {
+        setCode('');
       }
-      setLoading(false);
-    }
 
-    if (userAssessmentId) {
-      fetchAssessment();
-    } else {
-      fetchQuestion();
-    }
+      if (userAssessmentId) {
+        await fetchAssessment(id!, ignore);
+      } else {
+        await fetchQuestion(id!, ignore);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      ignore = true;
+    };
   }, [id, userAssessmentId]);
 
   // ─── EFFECTS ─────────────────────────────────────────────────────────────
@@ -190,21 +185,18 @@ export const PracticeProblem = () => {
     }
   };
 
-  const fetchAssessment = async () => {
-    // Clear old question data to prevent stale UI
-    setQuestion(null);
-    setTestCaseResults([]);
-    setOutput('');
-    
-    // If we have initial state, we don't need the 'Loading problem' full screen spinner
-    if (!location.state?.initialUserAssessment) {
+  const fetchAssessment = async (questionId: string, ignore: boolean) => {
+    if (!location.state?.initialUserAssessment && !question) {
       setLoading(true);
     }
     try {
+      // Cache-busting 't' parameter ensures we don't load stale data
       const [qRes, uaRes] = await Promise.all([
-        api.get(`/questions/${id}`),
+        api.get(`/questions/${questionId}?t=${Date.now()}`),
         api.get(`/assessments/session/${userAssessmentId}`)
       ]);
+
+      if (ignore) return;
 
       const q = qRes.data.data;
       const ua = uaRes.data.data;
@@ -212,15 +204,11 @@ export const PracticeProblem = () => {
       setQuestion(q);
       setCustomInput(q.sampleInput || '');
       
-      // Only set generic starter code if no work has been done yet
-      // Progress will be loaded later in fetchSavedProgress
-      if (!code) setCode(getStarterCode(q, language));
+      // Load saved progress for the specific question
+      await fetchSavedProgress(ua.id, questionId);
       
       setUserAssessment(ua);
       setSwitchCount(ua.tabSwitches || 0);
-
-      // Load saved progress for the NEW question ID
-      await fetchSavedProgress(ua.id, id!);
 
       const startTime = new Date(ua.startedAt).getTime();
       const durationMs = ua.assessment.duration * 60 * 1000;
@@ -228,38 +216,39 @@ export const PracticeProblem = () => {
       const remainingSec = Math.max(0, Math.floor((durationMs - elapsedMs) / 1000));
       setTimeLeft(remainingSec);
     } catch (err) {
-      console.error("Failed to fetch assessment context", err);
+      if (!ignore) console.error("Failed to fetch assessment context", err);
     } finally {
-      setLoading(false);
+      if (!ignore) setLoading(false);
     }
   };
 
-  const fetchQuestion = async () => {
-    setQuestion(null);
-    setTestCaseResults([]);
-    setOutput('');
-    
-    if (!location.state?.initialQuestion) {
+  const fetchQuestion = async (questionId: string, ignore: boolean) => {
+    if (!location.state?.initialQuestion && !question) {
       setLoading(true);
     }
     try {
       const [qRes, allRes] = await Promise.all([
-        api.get(`/questions/${id}`),
+        api.get(`/questions/${questionId}?t=${Date.now()}`),
         api.get('/questions')
       ]);
+
+      if (ignore) return;
 
       const q = qRes.data.data;
       setQuestion(q);
       setCustomInput(q.sampleInput || '');
+      
+      // If we don't have code yet, set the starter code
+      // We check !code to avoid overwriting typed code if the user happens to nav-back
       if (!code) setCode(getStarterCode(q, language));
 
       const questions = allRes.data.data;
-      const currentIndex = questions.findIndex((item: any) => item.id === id);
+      const currentIndex = questions.findIndex((item: any) => item.id === questionId);
       setNextQuestionId(currentIndex !== -1 && currentIndex + 1 < questions.length ? questions[currentIndex + 1].id : null);
     } catch (error) {
-      console.error('Failed to fetch question', error);
+      if (!ignore) console.error('Failed to fetch question', error);
     } finally {
-      setLoading(false);
+      if (!ignore) setLoading(false);
     }
   };
 
@@ -756,9 +745,6 @@ export const PracticeProblem = () => {
                  const currentIndex = aqs.findIndex((aq:any) => aq.questionId === id);
                  if (currentIndex > 0) {
                    const prevId = aqs[currentIndex - 1].questionId;
-                   // Reset question-specific states for instantaneous feedback
-                   setQuestion(null);
-                   setTestCaseResults([]);
                    navigate(`/practice/${prevId}?userAssessmentId=${userAssessmentId}`);
                  }
                }}
@@ -774,9 +760,6 @@ export const PracticeProblem = () => {
                  const currentIndex = aqs.findIndex((aq:any) => aq.questionId === id);
                  if (currentIndex !== -1 && currentIndex < aqs.length - 1) {
                    const nextId = aqs[currentIndex + 1].questionId;
-                   // Reset question-specific states for instantaneous feedback
-                   setQuestion(null);
-                   setTestCaseResults([]);
                    navigate(`/practice/${nextId}?userAssessmentId=${userAssessmentId}`);
                  }
                }}
