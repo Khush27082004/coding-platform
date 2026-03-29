@@ -43,7 +43,7 @@ export const Dashboard = () => {
         title="Admin workspace"
         subtitle="Manage your question bank, scheduled tests, and candidate outcomes."
       >
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button
             type="button"
             onClick={() => navigate('/admin/questions')}
@@ -51,7 +51,7 @@ export const Dashboard = () => {
           >
             <div className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">Content</div>
             <h2 className="text-lg font-semibold text-white group-hover:text-emerald-300 transition-colors">
-              Question bank
+              Questions
             </h2>
             <p className="mt-2 text-sm text-slate-400">Create, edit, and curate coding problems.</p>
           </button>
@@ -62,20 +62,9 @@ export const Dashboard = () => {
           >
             <div className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">Delivery</div>
             <h2 className="text-lg font-semibold text-white group-hover:text-emerald-300 transition-colors">
-              Tests &amp; results
+              Assessments
             </h2>
-            <p className="mt-2 text-sm text-slate-400">View assessments and per-candidate scores.</p>
-          </button>
-          <button
-            type="button"
-            onClick={() => navigate('/admin/analytics')}
-            className="group text-left rounded-xl border border-slate-800 bg-slate-900/50 p-6 hover:border-emerald-500/40 hover:bg-slate-900 transition-all"
-          >
-            <div className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">Insights</div>
-            <h2 className="text-lg font-semibold text-white group-hover:text-emerald-300 transition-colors">
-              Overview
-            </h2>
-            <p className="mt-2 text-sm text-slate-400">High-level stats and combined scoreboard.</p>
+            <p className="mt-2 text-sm text-slate-400">Create tests, assign students, and view scores.</p>
           </button>
         </div>
       </AppShell>

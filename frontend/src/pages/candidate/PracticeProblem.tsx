@@ -869,46 +869,4 @@ export const PracticeProblem = () => {
     </div>
   );
 };
-{
-  output && (
-    <button
-      onClick={() => { setOutput(''); setTestCaseResults([]); }}
-      className="text-xs text-zinc-600 hover:text-zinc-400 transition-colors"
-    >
-      Clear
-    </button>
-  )
-}
-                </div >
-  <div className="flex-1 overflow-y-auto px-4 py-3">
-    {output ? (
-      <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap leading-relaxed">{output}</pre>
-    ) : (
-      <p className="text-xs text-zinc-700 font-mono">Output will appear here...</p>
-    )}
-  </div>
-              </div >
-            </div >
-          </div >
 
-  {/* Status bar */ }
-  < div className = "h-7 bg-zinc-900 border-t border-zinc-800 flex items-center px-4 gap-6 flex-shrink-0" >
-    <div className="flex items-center gap-4 text-xs text-zinc-600">
-      {totalTests > 0 && (
-        <>
-          <span>
-            Tests: <span className={`font-semibold ${passedTests === totalTests ? 'text-green-500' : 'text-red-500'}`}>{passedTests}/{totalTests}</span>
-          </span>
-          <span>
-            Score: <span className="text-zinc-400 font-semibold">{score}/{maxScore}</span>
-          </span>
-        </>
-      )}
-      <span className="ml-auto">{language.charAt(0).toUpperCase() + language.slice(1)}</span>
-    </div>
-          </div >
-        </div >
-      </div >
-    </div >
-  );
-};

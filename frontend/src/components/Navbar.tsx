@@ -41,13 +41,10 @@ export const Navbar = () => {
                 {user.role === 'admin' ? (
                   <>
                     <NavLink to="/admin/questions" className={linkClass}>
-                      Question bank
+                      Questions
                     </NavLink>
                     <NavLink to="/admin/assessments" className={linkClass}>
-                      Tests &amp; results
-                    </NavLink>
-                    <NavLink to="/admin/analytics" className={linkClass}>
-                      Overview
+                      Assessments
                     </NavLink>
                   </>
                 ) : (
@@ -92,10 +89,7 @@ export const Navbar = () => {
                   Questions
                 </NavLink>
                 <NavLink to="/admin/assessments" className={linkClass}>
-                  Tests
-                </NavLink>
-                <NavLink to="/admin/analytics" className={linkClass}>
-                  Overview
+                  Assessments
                 </NavLink>
               </>
             ) : (
