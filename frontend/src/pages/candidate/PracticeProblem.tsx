@@ -735,39 +735,12 @@ export const PracticeProblem = () => {
 
         <div className="h-5 w-px bg-zinc-200" />
 
-        {/* Assessment Navigation (Prev/Next) */}
+        {/* Question Counter (Assessment only) */}
         {userAssessmentId && userAssessment?.assessment?.assessmentQuestions && (
-          <div className="flex items-center gap-1 mr-2">
-            <button
-               disabled={userAssessment.assessment.assessmentQuestions.findIndex((aq:any) => aq.questionId === id) <= 0}
-               onClick={() => {
-                 const aqs = userAssessment.assessment.assessmentQuestions;
-                 const currentIndex = aqs.findIndex((aq:any) => aq.questionId === id);
-                 if (currentIndex > 0) {
-                   const prevId = aqs[currentIndex - 1].questionId;
-                   navigate(`/practice/${prevId}?userAssessmentId=${userAssessmentId}`);
-                 }
-               }}
-               className="p-1.5 hover:bg-zinc-100 disabled:opacity-30 rounded-md transition-colors"
-               title="Previous Question"
-            >
-              <svg className="w-4 h-4 text-zinc-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="15 18 9 12 15 6" /></svg>
-            </button>
-            <button
-               disabled={userAssessment.assessment.assessmentQuestions.findIndex((aq:any) => aq.questionId === id) >= userAssessment.assessment.assessmentQuestions.length - 1}
-               onClick={() => {
-                 const aqs = userAssessment.assessment.assessmentQuestions;
-                 const currentIndex = aqs.findIndex((aq:any) => aq.questionId === id);
-                 if (currentIndex !== -1 && currentIndex < aqs.length - 1) {
-                   const nextId = aqs[currentIndex + 1].questionId;
-                   navigate(`/practice/${nextId}?userAssessmentId=${userAssessmentId}`);
-                 }
-               }}
-               className="p-1.5 hover:bg-zinc-100 disabled:opacity-30 rounded-md transition-colors"
-               title="Next Question"
-            >
-              <svg className="w-4 h-4 text-zinc-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 18 15 12 9 6" /></svg>
-            </button>
+          <div className="flex items-center px-2 py-1 bg-zinc-100 rounded-md border border-zinc-200">
+            <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-tight">
+              Question {userAssessment.assessment.assessmentQuestions.findIndex((aq: any) => aq.questionId === id) + 1} of {userAssessment.assessment.assessmentQuestions.length}
+            </span>
           </div>
         )}
 
@@ -849,6 +822,40 @@ export const PracticeProblem = () => {
             )}
             {runCooldown > 0 ? `Wait ${runCooldown}s` : 'Submit'}
           </button>
+
+          {/* New Prominent Assessment Navigation */}
+          {userAssessmentId && userAssessment?.assessment?.assessmentQuestions && (
+            <>
+              {userAssessment.assessment.assessmentQuestions.findIndex((aq: any) => aq.questionId === id) > 0 && (
+                <button
+                  onClick={() => {
+                    const aqs = userAssessment.assessment.assessmentQuestions;
+                    const currentIndex = aqs.findIndex((aq: any) => aq.questionId === id);
+                    const prevId = aqs[currentIndex - 1].questionId;
+                    navigate(`/practice/${prevId}?userAssessmentId=${userAssessmentId}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 text-zinc-700 hover:bg-zinc-200 rounded-md text-[11px] font-bold border border-zinc-200 transition-all shadow-sm"
+                >
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="15 18 9 12 15 6" /></svg>
+                  Prev Question
+                </button>
+              )}
+              {userAssessment.assessment.assessmentQuestions.findIndex((aq: any) => aq.questionId === id) < userAssessment.assessment.assessmentQuestions.length - 1 && (
+                <button
+                  onClick={() => {
+                    const aqs = userAssessment.assessment.assessmentQuestions;
+                    const currentIndex = aqs.findIndex((aq: any) => aq.questionId === id);
+                    const nextId = aqs[currentIndex + 1].questionId;
+                    navigate(`/practice/${nextId}?userAssessmentId=${userAssessmentId}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white hover:bg-indigo-700 rounded-md text-[11px] font-bold transition-all shadow-sm"
+                >
+                  Next Question
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 18 15 12 9 6" /></svg>
+                </button>
+              )}
+            </>
+          )}
         </div>
       </header>
 
