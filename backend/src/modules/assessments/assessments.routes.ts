@@ -14,6 +14,7 @@ router.get('/:id/results', authorize('admin'), controller.getResults);
 router.put('/:id', authorize('admin'), controller.update);
 router.post('/:id/assign', authorize('admin'), controller.assign);
 router.post('/:id/start', controller.start);
+router.get('/session/:id', controller.getUserAssessment);
 router.patch('/:id/tab-switch', controller.updateTabSwitches);
 router.post('/progress/save', controller.saveProgress);
 router.get('/progress/get', controller.getProgress);

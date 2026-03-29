@@ -198,7 +198,7 @@ export const PracticeProblem = () => {
     try {
       const [qRes, uaRes] = await Promise.all([
         api.get(`/questions/${id}`),
-        api.get(`/user-assessments/${userAssessmentId}`)
+        api.get(`/assessments/session/${userAssessmentId}`)
       ]);
 
       const q = qRes.data.data;
@@ -734,27 +734,37 @@ export const PracticeProblem = () => {
         <div className="h-5 w-px bg-zinc-200" />
 
         {/* Assessment Navigation (Prev/Next) */}
-        {userAssessmentId && (
+        {userAssessmentId && userAssessment?.assessment?.assessmentQuestions && (
           <div className="flex items-center gap-1 mr-2">
             <button
-               disabled={userAssessment?.assessment?.assessmentQuestions.findIndex((aq:any) => aq.questionId === id) === 0}
+               disabled={userAssessment.assessment.assessmentQuestions.findIndex((aq:any) => aq.questionId === id) <= 0}
                onClick={() => {
-                 const idx = userAssessment?.assessment?.assessmentQuestions.findIndex((aq:any) => aq.questionId === id);
-                 const prevId = userAssessment?.assessment?.assessmentQuestions[idx-1]?.questionId;
-                 if (prevId) navigate(`/practice/${prevId}?userAssessmentId=${userAssessmentId}`);
+                 const aqs = userAssessment.assessment.assessmentQuestions;
+                 const currentIndex = aqs.findIndex((aq:any) => aq.questionId === id);
+                 if (currentIndex > 0) {
+                   const prevId = aqs[currentIndex - 1].questionId;
+                   navigate(`/practice/${prevId}?userAssessmentId=${userAssessmentId}`);
+                   window.location.reload(); // Force reload to trigger all effects with new ID
+                 }
                }}
                className="p-1.5 hover:bg-zinc-100 disabled:opacity-30 rounded-md transition-colors"
+               title="Previous Question"
             >
               <svg className="w-4 h-4 text-zinc-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="15 18 9 12 15 6" /></svg>
             </button>
             <button
-               disabled={userAssessment?.assessment?.assessmentQuestions.findIndex((aq:any) => aq.questionId === id) === userAssessment?.assessment?.assessmentQuestions.length - 1}
+               disabled={userAssessment.assessment.assessmentQuestions.findIndex((aq:any) => aq.questionId === id) >= userAssessment.assessment.assessmentQuestions.length - 1}
                onClick={() => {
-                 const idx = userAssessment?.assessment?.assessmentQuestions.findIndex((aq:any) => aq.questionId === id);
-                 const nextId = userAssessment?.assessment?.assessmentQuestions[idx+1]?.questionId;
-                 if (nextId) navigate(`/practice/${nextId}?userAssessmentId=${userAssessmentId}`);
+                 const aqs = userAssessment.assessment.assessmentQuestions;
+                 const currentIndex = aqs.findIndex((aq:any) => aq.questionId === id);
+                 if (currentIndex !== -1 && currentIndex < aqs.length - 1) {
+                   const nextId = aqs[currentIndex + 1].questionId;
+                   navigate(`/practice/${nextId}?userAssessmentId=${userAssessmentId}`);
+                   window.location.reload(); // Force reload to trigger all effects with new ID
+                 }
                }}
                className="p-1.5 hover:bg-zinc-100 disabled:opacity-30 rounded-md transition-colors"
+               title="Next Question"
             >
               <svg className="w-4 h-4 text-zinc-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 18 15 12 9 6" /></svg>
             </button>

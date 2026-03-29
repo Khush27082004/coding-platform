@@ -379,4 +379,36 @@ export class AssessmentsService {
       }
     });
   }
+
+  async getUserAssessment(userAssessmentId: string, userId: string) {
+    const userAssessment = await prisma.userAssessment.findUnique({
+      where: { id: userAssessmentId },
+      include: {
+        assessment: {
+          include: {
+            assessmentQuestions: {
+              include: {
+                question: {
+                  select: {
+                    id: true,
+                    title: true,
+                    difficulty: true,
+                    timeLimit: true,
+                    memoryLimit: true,
+                  },
+                },
+              },
+              orderBy: { orderIndex: 'asc' },
+            },
+          },
+        },
+      },
+    });
+
+    if (!userAssessment || userAssessment.userId !== userId) {
+      throw new AppError(404, 'ASSESSMENT_NOT_FOUND', 'Assessment session not found');
+    }
+
+    return userAssessment;
+  }
 }
