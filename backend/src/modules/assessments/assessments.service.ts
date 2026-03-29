@@ -114,14 +114,15 @@ export class AssessmentsService {
       if (questions && questionsChanged) {
         await tx.assessmentQuestion.deleteMany({ where: { assessmentId: id } });
         
-        if (questions.length > 0) {
-          await tx.assessmentQuestion.createMany({
-            data: questions.map((q: any, i: number) => ({
+        for (let i = 0; i < questions.length; i++) {
+          const q = questions[i];
+          await tx.assessmentQuestion.create({
+            data: {
               assessmentId: id,
               questionId: q.questionId,
               points: q.points || 100,
               orderIndex: i + 1,
-            }))
+            }
           });
         }
         currentTotalScore = questions.reduce((sum: number, q: any) => sum + (q.points || 100), 0);
