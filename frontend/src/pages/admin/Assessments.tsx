@@ -72,11 +72,16 @@ const Modal = ({
 export const Assessments = () => {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
 
   // scoreboard
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, ResultsData>>({});
   const [resultsLoading, setResultsLoading] = useState<Record<string, boolean>>({});
+
+  const filteredAssessments = assessments.filter(a => 
+    a.title?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // create modal
   const [showCreate, setShowCreate] = useState(false);
@@ -225,6 +230,22 @@ export const Assessments = () => {
           </button>
         </div>
 
+        {/* Filters */}
+        {!loading && assessments.length > 0 && (
+          <div className="mb-6">
+            <div className="relative max-w-md">
+              <input
+                type="text"
+                placeholder="Search assessments..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-2.5 pl-10 text-sm text-white placeholder-slate-600 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
+              />
+              <svg className="absolute left-3.5 top-3 h-4 w-4 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+            </div>
+          </div>
+        )}
+
         {/* Assessment list */}
         {loading ? (
           <div className="py-20 text-center text-slate-600 animate-pulse">Loading assessments…</div>
@@ -242,7 +263,7 @@ export const Assessments = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {assessments.map(a => (
+            {filteredAssessments.map(a => (
               <div key={a.id} className="rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden">
 
                 {/* Card header */}

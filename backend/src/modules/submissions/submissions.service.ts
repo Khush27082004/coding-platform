@@ -131,32 +131,40 @@ export class SubmissionsService {
         data: { status: 'running' },
       });
 
+      // Parallelize evaluation of test cases
+      const evaluationResults = await Promise.all(testCases.map(async (testCase) => {
+        const result = await this.executeWithInputCompatibility(language, code, testCase.input);
+        const passed = result.success && this.compareOutputs(result.output, testCase.expectedOutput);
+        return {
+          testCaseId: testCase.id,
+          status: result.error ? 'error' : passed ? 'passed' : 'failed',
+          actualOutput: result.output,
+          executionTime: result.executionTime,
+          errorMessage: result.error,
+          pointsEarned: passed ? testCase.points : 0,
+          passed
+        };
+      }));
+
+      // Persist results and update totals
       let totalScore = 0;
       let passedTests = 0;
-      const results = [];
 
-      for (const testCase of testCases) {
-        const result = await this.executeWithInputCompatibility(language, code, testCase.input);
+      for (const resData of evaluationResults) {
+        if (resData.passed) passedTests++;
+        totalScore += resData.pointsEarned;
 
-        const passed = result.success && this.compareOutputs(result.output, testCase.expectedOutput);
-        const pointsEarned = passed ? testCase.points : 0;
-
-        if (passed) passedTests++;
-        totalScore += pointsEarned;
-
-        const submissionResult = await prisma.submissionResult.create({
+        await prisma.submissionResult.create({
           data: {
             submissionId,
-            testCaseId: testCase.id,
-            status: result.error ? 'error' : passed ? 'passed' : 'failed',
-            actualOutput: result.output,
-            executionTime: result.executionTime,
-            errorMessage: result.error,
-            pointsEarned,
+            testCaseId: resData.testCaseId,
+            status: resData.status as any,
+            actualOutput: resData.actualOutput,
+            executionTime: resData.executionTime,
+            errorMessage: resData.errorMessage,
+            pointsEarned: resData.pointsEarned,
           },
         });
-
-        results.push(submissionResult);
       }
 
       await prisma.submission.update({
@@ -404,29 +412,29 @@ export class SubmissionsService {
     }
 
     const testCases = question.testCases;
-    let totalScore = 0;
-    let passedTests = 0;
-    const results: any[] = [];
-
-    for (const testCase of testCases) {
+    // Run all test cases in parallel
+    const evaluationResults = await Promise.all(testCases.map(async (testCase) => {
       const execResult = await this.executeWithInputCompatibility(data.language as Language, data.code, testCase.input);
       const passed = execResult.success && this.compareOutputs(execResult.output, testCase.expectedOutput);
-      const pointsEarned = passed ? testCase.points : 0;
-
-      if (passed) passedTests += 1;
-      totalScore += pointsEarned;
-
-      results.push({
+      return {
         testCaseId: testCase.id,
         input: testCase.input,
         expectedOutput: testCase.expectedOutput,
         actualOutput: execResult.output,
         status: execResult.error ? 'error' : passed ? 'passed' : 'failed',
-        pointsEarned,
+        pointsEarned: passed ? testCase.points : 0,
         pointsAvailable: testCase.points,
         errorMessage: execResult.error,
-      });
-    }
+        passed
+      };
+    }));
+
+    let totalScore = 0;
+    let passedTests = 0;
+    evaluationResults.forEach(res => {
+      if (res.passed) passedTests += 1;
+      totalScore += res.pointsEarned;
+    });
 
     return {
       questionId: question.id,
@@ -435,7 +443,7 @@ export class SubmissionsService {
       totalTests: testCases.length,
       score: totalScore,
       maxScore: testCases.reduce((sum, tc) => sum + tc.points, 0),
-      submissionResults: results,
+      submissionResults: evaluationResults,
     };
   }
 
@@ -464,36 +472,43 @@ export class SubmissionsService {
       },
     });
 
-    // Evaluate synchronously
-    let totalScore = 0;
-    let passedTests = 0;
-    const results: any[] = [];
-
-    for (const testCase of question.testCases) {
+    // Parallelize evaluation for practice submission
+    const evaluationResults = await Promise.all(question.testCases.map(async (testCase) => {
       const execResult = await this.executeWithInputCompatibility(data.language as Language, data.code, testCase.input);
       const passed = execResult.success && this.compareOutputs(execResult.output, testCase.expectedOutput);
-      const pointsEarned = passed ? testCase.points : 0;
+      return {
+        testCase,
+        execResult,
+        passed,
+        pointsEarned: passed ? testCase.points : 0
+      };
+    }));
 
-      if (passed) passedTests += 1;
-      totalScore += pointsEarned;
+    let totalScore = 0;
+    let passedTests = 0;
+    const finalResults = [];
+
+    for (const res of evaluationResults) {
+      if (res.passed) passedTests += 1;
+      totalScore += res.pointsEarned;
 
       const submissionResult = await prisma.submissionResult.create({
         data: {
           submissionId: submission.id,
-          testCaseId: testCase.id,
-          status: execResult.error ? 'error' : passed ? 'passed' : 'failed',
-          actualOutput: execResult.output,
-          executionTime: execResult.executionTime,
-          errorMessage: execResult.error,
-          pointsEarned,
+          testCaseId: res.testCase.id,
+          status: res.execResult.error ? 'error' : res.passed ? 'passed' : 'failed',
+          actualOutput: res.execResult.output,
+          executionTime: res.execResult.executionTime,
+          errorMessage: res.execResult.error,
+          pointsEarned: res.pointsEarned,
         },
       });
 
-      results.push({
+      finalResults.push({
         ...submissionResult,
-        input: testCase.input,
-        expectedOutput: testCase.expectedOutput,
-        pointsAvailable: testCase.points,
+        input: res.testCase.input,
+        expectedOutput: res.testCase.expectedOutput,
+        pointsAvailable: res.testCase.points,
       });
     }
 
@@ -516,7 +531,7 @@ export class SubmissionsService {
       totalTests: question.testCases.length,
       score: totalScore,
       maxScore,
-      submissionResults: results,
+      submissionResults: finalResults,
     };
   }
 }

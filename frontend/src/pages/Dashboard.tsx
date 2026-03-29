@@ -122,9 +122,14 @@ export const Dashboard = () => {
                           try {
                             const res = await api.post(`/assessments/${a.id}/start`);
                             const ua = res.data.data;
-                            const firstQ = ua.assessment.assessmentQuestions[0]?.questionId;
-                            if (firstQ) {
-                              navigate(`/practice/${firstQ}?userAssessmentId=${ua.id}`);
+                            const firstAQ = ua.assessment.assessmentQuestions[0];
+                            if (firstAQ) {
+                              navigate(`/practice/${firstAQ.questionId}?userAssessmentId=${ua.id}`, {
+                                state: { 
+                                  initialQuestion: firstAQ.question,
+                                  initialUserAssessment: ua
+                                }
+                              });
                             } else {
                               alert('This assessment has no questions.');
                             }

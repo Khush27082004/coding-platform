@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { CodeEditor } from '../../components/CodeEditor';
 import api from '../../services/api';
 
@@ -40,6 +40,7 @@ export const PracticeProblem = () => {
     return saved !== null ? parseInt(saved, 10) : 1800;
   });
   const containerRef = useRef<HTMLDivElement>(null);
+  const location = useLocation();
 
   // Evaluation overlay
   const [evalOverlay, setEvalOverlay] = useState<EvalState | null>(null);
@@ -51,6 +52,26 @@ export const PracticeProblem = () => {
   const [switchCount, setSwitchCount] = useState(0);
 
   useEffect(() => {
+    // Instant initialization from dashboard state
+    if (location.state?.initialQuestion) {
+      const q = location.state.initialQuestion;
+      setQuestion(q);
+      setCustomInput(q.sampleInput || '');
+      setCode(getStarterCode(q, language));
+      if (location.state.initialUserAssessment) {
+        const ua = location.state.initialUserAssessment;
+        setUserAssessment(ua);
+        setSwitchCount(ua.tabSwitches || 0);
+        // Sync timer
+        const startTime = new Date(ua.startedAt).getTime();
+        const durationMs = ua.assessment.duration * 60 * 1000;
+        const elapsedMs = Date.now() - startTime;
+        const remainingSec = Math.max(0, Math.floor((durationMs - elapsedMs) / 1000));
+        setTimeLeft(remainingSec);
+      }
+      setLoading(false);
+    }
+
     if (userAssessmentId) {
       fetchAssessment();
     } else {
@@ -132,7 +153,10 @@ export const PracticeProblem = () => {
   }, [id, userAssessmentId]);
 
   const fetchAssessment = async () => {
-    setLoading(true);
+    // If we have initial state, we don't need the 'Loading problem' full screen spinner
+    if (!location.state?.initialUserAssessment) {
+      setLoading(true);
+    }
     try {
       const [qRes, uaRes] = await Promise.all([
         api.get(`/questions/${id}`),
@@ -144,11 +168,10 @@ export const PracticeProblem = () => {
 
       setQuestion(q);
       setCustomInput(q.sampleInput || '');
-      setCode(getStarterCode(q, language));
+      if (!code) setCode(getStarterCode(q, language));
       setUserAssessment(ua);
       setSwitchCount(ua.tabSwitches || 0);
 
-      // Sync timer
       const startTime = new Date(ua.startedAt).getTime();
       const durationMs = ua.assessment.duration * 60 * 1000;
       const elapsedMs = Date.now() - startTime;
@@ -162,7 +185,9 @@ export const PracticeProblem = () => {
   };
 
   const fetchQuestion = async () => {
-    setLoading(true);
+    if (!location.state?.initialQuestion) {
+      setLoading(true);
+    }
     try {
       const [qRes, allRes] = await Promise.all([
         api.get(`/questions/${id}`),
@@ -172,16 +197,11 @@ export const PracticeProblem = () => {
       const q = qRes.data.data;
       setQuestion(q);
       setCustomInput(q.sampleInput || '');
-      setCode(getStarterCode(q, language));
+      if (!code) setCode(getStarterCode(q, language));
 
-      // Find next question
       const questions = allRes.data.data;
       const currentIndex = questions.findIndex((item: any) => item.id === id);
-      if (currentIndex !== -1 && currentIndex + 1 < questions.length) {
-        setNextQuestionId(questions[currentIndex + 1].id);
-      } else {
-        setNextQuestionId(null);
-      }
+      setNextQuestionId(currentIndex !== -1 && currentIndex + 1 < questions.length ? questions[currentIndex + 1].id : null);
     } catch (error) {
       console.error('Failed to fetch question', error);
     } finally {
@@ -644,12 +664,15 @@ export const PracticeProblem = () => {
             disabled={loading || runCooldown > 0}
             className={`flex items-center gap-1.5 transition-all shadow-sm px-3 py-1.5 rounded-md text-[11px] font-bold ${
               runCooldown > 0 
-                ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed' 
+                ? 'bg-amber-50 text-amber-600 border border-amber-200 cursor-not-allowed animate-pulse shadow-inner' 
                 : 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40'
             }`}
           >
             {(loading || runCooldown > 0) ? (
-              <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><path d="M12 2a10 10 0 0 1 10 10" /></svg>
+              <svg className={`w-3 h-3 ${runCooldown > 0 ? '' : 'animate-spin'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                {runCooldown > 0 ? <circle cx="12" cy="12" r="10" strokeDasharray="64" strokeDashoffset={64 * (runCooldown / 7)} /> : <circle cx="12" cy="12" r="10" />}
+                <path d="M12 2a10 10 0 0 1 10 10" />
+              </svg>
             ) : (
               <svg className="w-3 h-3" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3" /></svg>
             )}
@@ -661,12 +684,15 @@ export const PracticeProblem = () => {
               disabled={loading || runCooldown > 0}
               className={`flex items-center gap-1.5 transition-all shadow-sm px-3 py-1.5 rounded-md text-[11px] font-bold border ${
                 runCooldown > 0 
-                  ? 'bg-zinc-100 text-zinc-400 border-zinc-200 cursor-not-allowed' 
+                  ? 'bg-amber-50 text-amber-600 border-amber-200 cursor-not-allowed animate-pulse shadow-inner' 
                   : 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200 disabled:opacity-40 border-zinc-200'
               }`}
             >
               {(loading || runCooldown > 0) ? (
-                <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><path d="M12 2a10 10 0 0 1 10 10" /></svg>
+                <svg className={`w-3 h-3 ${runCooldown > 0 ? '' : 'animate-spin'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                   <circle cx="12" cy="12" r="10" />
+                   <path d="M12 2a10 10 0 0 1 10 10" />
+                </svg>
               ) : (
                 <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
               )}
@@ -678,7 +704,7 @@ export const PracticeProblem = () => {
             disabled={submitting || loading || runCooldown > 0}
             className={`flex items-center gap-1.5 transition-all shadow-sm px-4 py-1.5 rounded-md text-[11px] font-bold ${
               runCooldown > 0 
-                ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed' 
+                ? 'bg-zinc-100 text-zinc-400 border border-zinc-200 cursor-not-allowed line-through opacity-60' 
                 : 'bg-zinc-900 hover:bg-zinc-700 disabled:opacity-40 text-white'
             }`}
           >
