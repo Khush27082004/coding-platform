@@ -411,4 +411,28 @@ export class AssessmentsService {
 
     return userAssessment;
   }
+
+  async submitAssessment(userAssessmentId: string, userId: string) {
+    const userAssessment = await prisma.userAssessment.findUnique({
+      where: { id: userAssessmentId },
+    });
+
+    if (!userAssessment || userAssessment.userId !== userId) {
+      throw new AppError(404, 'ASSESSMENT_NOT_FOUND', 'Assessment session not found');
+    }
+
+    if (userAssessment.status === 'completed') {
+      return userAssessment;
+    }
+
+    const updated = await prisma.userAssessment.update({
+      where: { id: userAssessmentId },
+      data: {
+        status: 'completed',
+        completedAt: new Date(),
+      },
+    });
+
+    return updated;
+  }
 }

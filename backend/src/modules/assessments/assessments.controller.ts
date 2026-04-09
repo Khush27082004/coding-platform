@@ -105,4 +105,13 @@ export class AssessmentsController {
       next(error);
     }
   }
+
+  async submit(req: AuthRequest, res: Response, next: NextFunction) {
+    try {
+      const result = await service.submitAssessment(req.params.id, req.user!.userId);
+      res.json({ success: true, data: result });
+    } catch (error) {
+      next(error);
+    }
+  }
 }

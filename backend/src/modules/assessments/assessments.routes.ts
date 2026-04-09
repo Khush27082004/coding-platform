@@ -18,5 +18,6 @@ router.get('/session/:id', controller.getUserAssessment);
 router.patch('/:id/tab-switch', controller.updateTabSwitches);
 router.post('/progress/save', controller.saveProgress);
 router.get('/progress/get', controller.getProgress);
+router.post('/:id/submit', controller.submit);
 
 export default router;

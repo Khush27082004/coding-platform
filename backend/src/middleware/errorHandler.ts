@@ -45,6 +45,18 @@ export const errorHandler = (
     });
   }
 
+  if (err.name === 'PrismaClientInitializationError' || err.name === 'PrismaClientConnectorError') {
+    logger.error('Database connection error:', err);
+    return res.status(503).json({
+      success: false,
+      error: {
+        code: 'DATABASE_CONNECTION_ERROR',
+        message: 'The server is temporarily unable to connect to the database. Please try again later.',
+        details: process.env.NODE_ENV === 'development' ? err.message : undefined,
+      },
+    });
+  }
+
   // Handle validation errors
   if (err.name === 'ZodError') {
     return res.status(400).json({
