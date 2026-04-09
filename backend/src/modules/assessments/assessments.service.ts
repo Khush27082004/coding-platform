@@ -188,15 +188,7 @@ export class AssessmentsService {
         assessment: {
           include: {
             assessmentQuestions: {
-              include: {
-                question: {
-                  include: {
-                    testCases: {
-                      where: { isHidden: false },
-                    },
-                  },
-                },
-              },
+              select: { questionId: true },
               orderBy: { orderIndex: 'asc' },
             },
           },
@@ -227,13 +219,7 @@ export class AssessmentsService {
           assessment: {
             include: {
               assessmentQuestions: {
-                include: {
-                  question: {
-                    include: {
-                      testCases: { where: { isHidden: false } }
-                    }
-                  }
-                },
+                select: { questionId: true },
                 orderBy: { orderIndex: 'asc' }
               }
             }
