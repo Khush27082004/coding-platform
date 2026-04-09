@@ -107,6 +107,19 @@ export class QuestionsService {
       });
 
       if (testCases && testCases.length > 0) {
+        // Find existing test cases to clean up related results before deleting
+        const existingTCs = await tx.testCase.findMany({
+          where: { questionId: id },
+          select: { id: true }
+        });
+        const tcIds = existingTCs.map(tc => tc.id);
+
+        if (tcIds.length > 0) {
+          await tx.submissionResult.deleteMany({
+            where: { testCaseId: { in: tcIds } }
+          });
+        }
+
         await tx.testCase.deleteMany({ where: { questionId: id } });
         await tx.testCase.createMany({
           data: testCases.map((tc: any, index: number) => ({
