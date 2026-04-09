@@ -212,22 +212,23 @@ export class SubmissionsService extends EventEmitter {
         userAssessmentId: submission.userAssessmentId,
         status: 'completed',
       },
+      orderBy: { submittedAt: 'desc' },
       select: {
         questionId: true,
         score: true,
       },
     });
 
-    const bestScores = new Map<string, number>();
+    const latestScores = new Map<string, number>();
     allSubmissions.forEach(sub => {
       const qId = sub.questionId;
-      const current = bestScores.get(qId) || 0;
-      if (sub.score > current) {
-        bestScores.set(qId, sub.score);
+      // Since allSubmissions is ordered by submittedAt DESC, the first one we see for a Q is the latest
+      if (!latestScores.has(qId)) {
+        latestScores.set(qId, sub.score);
       }
     });
 
-    const totalScore = Array.from(bestScores.values()).reduce((sum, score) => sum + score, 0);
+    const totalScore = Array.from(latestScores.values()).reduce((sum, score) => sum + score, 0);
 
     if (!submission.userAssessmentId) return;
 
@@ -236,7 +237,7 @@ export class SubmissionsService extends EventEmitter {
       data: { score: totalScore },
     });
 
-    await this.markAssessmentCompletedIfEligible(submission.userAssessmentId);
+    // await this.markAssessmentCompletedIfEligible(submission.userAssessmentId);
   }
 
   private async markAssessmentCompletedIfEligible(userAssessmentId: string) {
