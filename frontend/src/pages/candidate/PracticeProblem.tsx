@@ -54,7 +54,7 @@ export const PracticeProblem = () => {
 
   useEffect(() => {
     let ignore = false;
-    
+
     const loadData = async () => {
       // CLEAR ALL QUESTION-SPECIFIC STATE IMMEDIATELY
       setQuestion(null);
@@ -203,10 +203,10 @@ export const PracticeProblem = () => {
 
       setQuestion(q);
       setCustomInput(q.sampleInput || '');
-      
+
       // Load saved progress for the specific question
       await fetchSavedProgress(ua.id, questionId);
-      
+
       setUserAssessment(ua);
       setSwitchCount(ua.tabSwitches || 0);
 
@@ -237,7 +237,7 @@ export const PracticeProblem = () => {
       const q = qRes.data.data;
       setQuestion(q);
       setCustomInput(q.sampleInput || '');
-      
+
       // If we don't have code yet, set the starter code
       // We check !code to avoid overwriting typed code if the user happens to nav-back
       if (!code) setCode(getStarterCode(q, language));
@@ -350,7 +350,7 @@ export const PracticeProblem = () => {
       const submissionId = sub.data.data.id;
 
       setEvalOverlay({ stage: 'evaluating', message: 'Evaluating against test cases...', passedTests: 0, totalTests: 0, score: 0, maxScore: 0, results: [] });
-      
+
       // Start streaming results
       await streamResults(submissionId);
     } catch (err) {
@@ -387,7 +387,7 @@ export const PracticeProblem = () => {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6));
-              
+
               if (!results.find(r => r.id === data.testCaseId)) {
                 const newRes = {
                   id: data.testCaseId,
@@ -405,7 +405,7 @@ export const PracticeProblem = () => {
                   passedTests: passedCount,
                   results: [...results]
                 } : prev);
-                
+
                 setTestCaseResults([...results]);
                 setPassedTests(passedCount);
               }
@@ -417,7 +417,7 @@ export const PracticeProblem = () => {
       // Final results fetch
       const finalRes = await api.get(`/submissions/${submissionId}`);
       const finalSub = finalRes.data.data;
-      
+
       const finalResults = finalSub.submissionResults?.map((r: any) => ({
         id: r.testCaseId,
         input: r.testCase?.input || '',
@@ -462,6 +462,27 @@ export const PracticeProblem = () => {
   const closeEvalOverlay = () => {
     setEvalOverlay(null);
     setActiveTab('results');
+  };
+
+  const finishAssessment = async () => {
+    if (!userAssessmentId) return;
+
+    const confirmed = window.confirm(
+      'Are you sure you want to end the test? You will not be able to make any further changes or submissions.'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setLoading(true);
+      await api.post(`/assessments/${userAssessmentId}/submit`);
+      navigate('/');
+    } catch (err) {
+      console.error('Failed to finish assessment', err);
+      alert('Failed to end test. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const difficultyConfig: Record<string, { label: string; cls: string }> = {
@@ -523,12 +544,12 @@ export const PracticeProblem = () => {
 
             {/* Header */}
             <div className={`px-6 py-5 border-b border-zinc-100 flex items-center gap-3 ${evalOverlay.stage === 'done' && evalOverlay.passedTests === evalOverlay.totalTests && evalOverlay.totalTests > 0
-                ? 'bg-green-50'
-                : evalOverlay.stage === 'done'
-                  ? 'bg-amber-50'
-                  : evalOverlay.stage === 'error'
-                    ? 'bg-red-50'
-                    : 'bg-zinc-50'
+              ? 'bg-green-50'
+              : evalOverlay.stage === 'done'
+                ? 'bg-amber-50'
+                : evalOverlay.stage === 'error'
+                  ? 'bg-red-50'
+                  : 'bg-zinc-50'
               }`}>
               {/* Stage icon */}
               {(evalOverlay.stage === 'submitting' || evalOverlay.stage === 'evaluating') ? (
@@ -656,23 +677,25 @@ export const PracticeProblem = () => {
                 >
                   View Details
                 </button>
-                <button
-                  onClick={() => {
-                    closeEvalOverlay();
-                    if (nextQuestionId) {
-                      navigate(`/practice/${nextQuestionId}`);
-                    } else {
-                      navigate('/');
-                    }
-                  }}
-                  className="bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-1.5"
-                >
-                  {nextQuestionId ? (
-                    <>Next Problem <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg></>
-                  ) : (
-                    <>Return Home <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg></>
-                  )}
-                </button>
+                {!userAssessmentId && (
+                  <button
+                    onClick={() => {
+                      closeEvalOverlay();
+                      if (nextQuestionId) {
+                        navigate(`/practice/${nextQuestionId}`);
+                      } else {
+                        navigate('/');
+                      }
+                    }}
+                    className="bg-zinc-900 hover:bg-zinc-700 text-white text-sm font-semibold px-5 py-2 rounded-lg transition-colors shadow-sm flex items-center gap-1.5"
+                  >
+                    {nextQuestionId ? (
+                      <>Next Problem <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6" /></svg></>
+                    ) : (
+                      <>Return Home <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg></>
+                    )}
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -716,8 +739,8 @@ export const PracticeProblem = () => {
         {/* Tab Switch Warning (for assessments) */}
         {userAssessmentId && switchCount > 0 && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 bg-red-50 border border-red-200 rounded-md text-red-600 text-[10px] font-bold">
-             <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-             SWITCHES: {switchCount}
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+            SWITCHES: {switchCount}
           </div>
         )}
 
@@ -769,11 +792,10 @@ export const PracticeProblem = () => {
           <button
             onClick={runCode}
             disabled={loading || runCooldown > 0}
-            className={`flex items-center gap-1.5 transition-all shadow-sm px-3 py-1.5 rounded-md text-[11px] font-bold ${
-              runCooldown > 0 
-                ? 'bg-amber-50 text-amber-600 border border-amber-200 cursor-not-allowed animate-pulse shadow-inner' 
+            className={`flex items-center gap-1.5 transition-all shadow-sm px-3 py-1.5 rounded-md text-[11px] font-bold ${runCooldown > 0
+                ? 'bg-amber-50 text-amber-600 border border-amber-200 cursor-not-allowed animate-pulse shadow-inner'
                 : 'bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-40'
-            }`}
+              }`}
           >
             {(loading || runCooldown > 0) ? (
               <svg className={`w-3 h-3 ${runCooldown > 0 ? '' : 'animate-spin'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
@@ -785,35 +807,31 @@ export const PracticeProblem = () => {
             )}
             {runCooldown > 0 ? `Wait ${runCooldown}s` : 'Run'}
           </button>
-          {!userAssessmentId && (
-            <button
-              onClick={runAllTestCases}
-              disabled={loading || runCooldown > 0}
-              className={`flex items-center gap-1.5 transition-all shadow-sm px-3 py-1.5 rounded-md text-[11px] font-bold border ${
-                runCooldown > 0 
-                  ? 'bg-amber-50 text-amber-600 border-amber-200 cursor-not-allowed animate-pulse shadow-inner' 
-                  : 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200 disabled:opacity-40 border-zinc-200'
+          <button
+            onClick={runAllTestCases}
+            disabled={loading || runCooldown > 0}
+            className={`flex items-center gap-1.5 transition-all shadow-sm px-3 py-1.5 rounded-md text-[11px] font-bold border ${runCooldown > 0
+                ? 'bg-amber-50 text-amber-600 border-amber-200 cursor-not-allowed animate-pulse shadow-inner'
+                : 'bg-zinc-100 text-zinc-900 hover:bg-zinc-200 disabled:opacity-40 border-zinc-200'
               }`}
-            >
-              {(loading || runCooldown > 0) ? (
-                <svg className={`w-3 h-3 ${runCooldown > 0 ? '' : 'animate-spin'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                   <circle cx="12" cy="12" r="10" />
-                   <path d="M12 2a10 10 0 0 1 10 10" />
-                </svg>
-              ) : (
-                <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
-              )}
-              {runCooldown > 0 ? `Wait ${runCooldown}s` : 'Run tests'}
-            </button>
-          )}
+          >
+            {(loading || runCooldown > 0) ? (
+              <svg className={`w-3 h-3 ${runCooldown > 0 ? '' : 'animate-spin'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 2a10 10 0 0 1 10 10" />
+              </svg>
+            ) : (
+              <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></svg>
+            )}
+            {runCooldown > 0 ? `Wait ${runCooldown}s` : 'Run tests'}
+          </button>
           <button
             onClick={submitSolution}
             disabled={submitting || loading || runCooldown > 0}
-            className={`flex items-center gap-1.5 transition-all shadow-sm px-4 py-1.5 rounded-md text-[11px] font-bold ${
-              runCooldown > 0 
-                ? 'bg-zinc-100 text-zinc-400 border border-zinc-200 cursor-not-allowed line-through opacity-60' 
+            className={`flex items-center gap-1.5 transition-all shadow-sm px-4 py-1.5 rounded-md text-[11px] font-bold ${runCooldown > 0
+                ? 'bg-zinc-100 text-zinc-400 border border-zinc-200 cursor-not-allowed line-through opacity-60'
                 : 'bg-zinc-900 hover:bg-zinc-700 disabled:opacity-40 text-white'
-            }`}
+              }`}
           >
             {(submitting || runCooldown > 0) ? (
               <svg className="w-3 h-3 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10" /><path d="M12 2a10 10 0 0 1 10 10" /></svg>
@@ -826,6 +844,15 @@ export const PracticeProblem = () => {
           {/* New Prominent Assessment Navigation */}
           {userAssessmentId && userAssessment?.assessment?.assessmentQuestions && (
             <>
+              <button
+                onClick={finishAssessment}
+                disabled={loading}
+                className="flex items-center gap-1.5 px-4 py-1.5 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 rounded-md text-[11px] font-bold transition-all shadow-sm mr-auto"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><polyline points="16 17 21 12 16 7" /><line x1="21" y1="12" x2="9" y2="12" /></svg>
+                End Test
+              </button>
+
               {userAssessment.assessment.assessmentQuestions.findIndex((aq: any) => aq.questionId === id) > 0 && (
                 <button
                   onClick={() => {
@@ -874,8 +901,8 @@ export const PracticeProblem = () => {
                 key={tab}
                 onClick={() => setActiveTab(tab)}
                 className={`relative px-5 py-3 text-xs font-semibold transition-colors capitalize ${activeTab === tab
-                    ? 'text-zinc-900'
-                    : 'text-zinc-400 hover:text-zinc-700'
+                  ? 'text-zinc-900'
+                  : 'text-zinc-400 hover:text-zinc-700'
                   }`}
               >
                 {tab === 'results' ? 'Test Results' : 'Description'}
@@ -994,10 +1021,10 @@ export const PracticeProblem = () => {
                 {/* Summary bar */}
                 {(totalTests > 0 || output) && (
                   <div className={`flex items-center gap-3 p-4 rounded-lg border ${passedTests === totalTests && totalTests > 0
-                      ? 'bg-green-500/5 border-green-500/20'
-                      : totalTests > 0
-                        ? 'bg-red-500/5 border-red-500/20'
-                        : 'bg-zinc-100 border-zinc-200'
+                    ? 'bg-green-500/5 border-green-500/20'
+                    : totalTests > 0
+                      ? 'bg-red-500/5 border-red-500/20'
+                      : 'bg-zinc-100 border-zinc-200'
                     }`}>
                     {totalTests > 0 ? (
                       <>
@@ -1038,8 +1065,8 @@ export const PracticeProblem = () => {
                       const failed = tc.status === 'failed';
                       return (
                         <details key={tc.id || idx} className={`group rounded-lg border overflow-hidden ${passed ? 'border-green-500/30 bg-green-500/5'
-                            : failed ? 'border-red-500/30 bg-red-500/5'
-                              : 'border-zinc-300 bg-zinc-50'
+                          : failed ? 'border-red-500/30 bg-red-500/5'
+                            : 'border-zinc-300 bg-zinc-50'
                           }`}>
                           <summary className="flex items-center justify-between px-4 py-3 cursor-pointer select-none list-none">
                             <div className="flex items-center gap-3">

@@ -41,31 +41,38 @@ export const Dashboard = () => {
   if (user?.role === 'admin') {
     return (
       <AppShell
-        title="Admin workspace"
-        subtitle="Manage your question bank, scheduled tests, and candidate outcomes."
+        title="Command center"
+        subtitle="Orchestrate your questions, assessments, and candidate analytics."
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <button
             type="button"
             onClick={() => navigate('/admin/questions')}
-            className="group text-left rounded-xl border border-slate-800 bg-slate-900/50 p-6 hover:border-emerald-500/40 hover:bg-slate-900 transition-all"
+            className="group text-left rounded-2xl border border-zinc-200 bg-white p-8 hover:border-zinc-900 transition-all shadow-sm hover:shadow-xl hover:-translate-y-1"
           >
-            <div className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">Content</div>
-            <h2 className="text-lg font-semibold text-white group-hover:text-emerald-300 transition-colors">
+            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 group-hover:text-zinc-900 transition-colors">Question Bank</div>
+            <h2 className="text-2xl font-black text-zinc-900 tracking-tighter uppercase leading-none">
               Questions
             </h2>
-            <p className="mt-2 text-sm text-slate-400">Create, edit, and curate coding problems.</p>
+            <p className="mt-3 text-sm text-zinc-500 font-medium">Curate and manage your collection of coding challenges.</p>
+            <div className="mt-8 flex items-center text-xs font-black text-zinc-900 gap-1 opacity-0 group-hover:opacity-100 transition-all">
+              Manage Collection <span className="text-lg">→</span>
+            </div>
           </button>
+          
           <button
             type="button"
             onClick={() => navigate('/admin/assessments')}
-            className="group text-left rounded-xl border border-slate-800 bg-slate-900/50 p-6 hover:border-emerald-500/40 hover:bg-slate-900 transition-all"
+            className="group text-left rounded-2xl border border-zinc-200 bg-white p-8 hover:border-zinc-900 transition-all shadow-sm hover:shadow-xl hover:-translate-y-1"
           >
-            <div className="text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-2">Delivery</div>
-            <h2 className="text-lg font-semibold text-white group-hover:text-emerald-300 transition-colors">
+            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 group-hover:text-zinc-900 transition-colors">Test Logistics</div>
+            <h2 className="text-2xl font-black text-zinc-900 tracking-tighter uppercase leading-none">
               Assessments
             </h2>
-            <p className="mt-2 text-sm text-slate-400">Create tests, assign students, and view scores.</p>
+            <p className="mt-3 text-sm text-zinc-500 font-medium">Schedule evaluations and monitor candidate performance.</p>
+            <div className="mt-8 flex items-center text-xs font-black text-zinc-900 gap-1 opacity-0 group-hover:opacity-100 transition-all">
+              Evaluation Center <span className="text-lg">→</span>
+            </div>
           </button>
         </div>
       </AppShell>
@@ -74,46 +81,56 @@ export const Dashboard = () => {
 
   return (
     <AppShell
-      title={`Welcome, ${user?.fullName?.split(' ')[0] || 'there'}`}
-      subtitle="Your assigned tests and practice tools in one place."
+      title={`Session: ${user?.fullName?.split(' ')[0] || 'Member'}`}
+      subtitle="Access your active assessments and skill development tools."
     >
-      <div className="space-y-10">
+      <div className="space-y-12">
         <section>
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">Assigned tests</h2>
+          <div className="flex items-center justify-between gap-4 mb-6 border-b border-zinc-100 pb-4">
+            <h2 className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em]">Assigned Evaluations</h2>
+            <div className="h-1 flex-1 bg-zinc-50 rounded-full ml-4 hidden sm:block" />
           </div>
+
           {loadingTests ? (
-            <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-8 text-center text-slate-500 text-sm">
-              Loading your tests…
+            <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-12 text-center text-zinc-400 text-xs font-bold uppercase tracking-widest animate-pulse">
+              Synchronizing assessments…
             </div>
           ) : assigned.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/30 p-8 text-center">
-              <p className="text-slate-400 text-sm">No tests assigned yet.</p>
-              <p className="text-slate-600 text-xs mt-2">When an admin assigns you an assessment, it will appear here.</p>
+            <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-12 text-center shadow-inner">
+              <p className="text-zinc-400 text-sm font-bold uppercase tracking-wide">No pending tests</p>
+              <p className="text-zinc-300 text-[10px] mt-2 font-bold uppercase tracking-widest">Awaiting administrator assignment</p>
             </div>
           ) : (
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2">
               {assigned.map((a) => {
                 const ua = a.userAssessments?.[0];
                 const rawStatus = ua?.status || 'not_started';
                 const statusLabel = rawStatus.replace('_', ' ');
                 const isCompleted = rawStatus === 'completed';
+                
                 return (
                   <div
                     key={a.id}
-                    className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 flex flex-col"
+                    className="rounded-2xl border border-zinc-200 bg-white p-6 flex flex-col shadow-sm hover:shadow-md transition-shadow"
                   >
                     <div className="flex-1">
-                      <h3 className="font-semibold text-white">{a.title}</h3>
-                      {a.description ? (
-                        <p className="mt-1 text-sm text-slate-400 line-clamp-2">{a.description}</p>
-                      ) : null}
-                      <div className="mt-3 flex flex-wrap gap-3 text-xs text-slate-500">
-                        <span>{a.duration} min</span>
-                        {a.totalScore != null && <span>{a.totalScore} pts</span>}
-                        <span className="capitalize">{statusLabel}</span>
+                      <div className="flex items-start justify-between">
+                        <h3 className="text-xl font-black text-zinc-900 tracking-tighter uppercase">{a.title}</h3>
+                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${
+                          isCompleted ? 'bg-zinc-100 text-zinc-400 border-zinc-200' : 'bg-zinc-900 text-white border-zinc-900'
+                        }`}>
+                          {statusLabel}
+                        </span>
+                      </div>
+                      {a.description && (
+                        <p className="mt-2 text-sm text-zinc-500 font-medium line-clamp-2">{a.description}</p>
+                      )}
+                      <div className="mt-4 flex flex-wrap gap-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                        <span className="flex items-center gap-1">🕒 {a.duration} MIN</span>
+                        {a.totalScore != null && <span className="flex items-center gap-1">💎 {a.totalScore} PTS</span>}
                       </div>
                     </div>
+                    
                     <button
                       type="button"
                       onClick={async () => {
@@ -126,12 +143,7 @@ export const Dashboard = () => {
                             const ua = res.data.data;
                             const firstAQ = ua.assessment.assessmentQuestions[0];
                             if (firstAQ) {
-                              navigate(`/practice/${firstAQ.questionId}?userAssessmentId=${ua.id}`, {
-                                state: { 
-                                  initialQuestion: firstAQ.question,
-                                  initialUserAssessment: ua
-                                }
-                              });
+                              navigate(`/practice/${firstAQ.questionId}?userAssessmentId=${ua.id}`);
                             } else {
                               alert('This assessment has no questions.');
                             }
@@ -143,23 +155,20 @@ export const Dashboard = () => {
                         }
                       }}
                       disabled={isCompleted || startingId === a.id}
-                      className={`mt-4 w-full sm:w-auto self-start rounded-lg px-4 py-2 text-sm font-semibold transition-colors flex items-center justify-center gap-2 ${
+                      className={`mt-6 w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg ${
                         isCompleted
-                          ? 'border border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700'
+                          ? 'bg-white border border-zinc-200 text-zinc-400 hover:bg-zinc-50 shadow-none'
                           : startingId === a.id 
-                            ? 'bg-emerald-600/50 text-white/50 cursor-not-allowed'
-                            : 'bg-emerald-600 text-white hover:bg-emerald-500'
+                            ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed shadow-none'
+                            : 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-zinc-200'
                       }`}
                     >
                       {startingId === a.id ? (
-                        <>
-                          <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="12" cy="12" r="10" strokeDasharray="64" strokeDashoffset="48" /><path d="M12 2a10 10 0 0 1 10 10" /></svg>
-                          Starting…
-                        </>
+                        'Initializing…'
                       ) : isCompleted ? (
-                        'View submissions'
+                        'Review submission'
                       ) : (
-                        rawStatus === 'not_started' ? 'Start test' : 'Continue test'
+                        rawStatus === 'not_started' ? 'Begin Session' : 'Resume Session'
                       )}
                     </button>
                   </div>
@@ -170,25 +179,33 @@ export const Dashboard = () => {
         </section>
 
         <section>
-          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider mb-4">More</h2>
+          <div className="flex items-center justify-between gap-4 mb-6 border-b border-zinc-100 pb-4">
+            <h2 className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em]">Development Tools</h2>
+            <div className="h-1 flex-1 bg-zinc-50 rounded-full ml-4 hidden sm:block" />
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <button
               type="button"
               onClick={() => navigate('/practice')}
-              className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-left hover:border-slate-600 transition-colors"
+              className="group rounded-2xl border border-zinc-100 bg-white p-6 text-left hover:border-zinc-900 transition-all shadow-sm flex items-center justify-between"
             >
-              <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">Practice</span>
-              <h3 className="mt-2 font-semibold text-white">Problem set</h3>
-              <p className="mt-1 text-sm text-slate-400">Sharpen skills outside of graded tests.</p>
+              <div>
+                <h3 className="text-lg font-black text-zinc-900 tracking-tighter uppercase leading-none">Solution Set</h3>
+                <p className="mt-2 text-xs text-zinc-400 font-bold uppercase tracking-wider">Independent Skill Refinement</p>
+              </div>
+              <span className="text-xl group-hover:translate-x-1 transition-transform opacity-0 group-hover:opacity-100">→</span>
             </button>
+            
             <button
               type="button"
               onClick={() => navigate('/submissions')}
-              className="rounded-xl border border-slate-800 bg-slate-900/50 p-5 text-left hover:border-slate-600 transition-colors"
+              className="group rounded-2xl border border-zinc-100 bg-white p-6 text-left hover:border-zinc-900 transition-all shadow-sm flex items-center justify-between"
             >
-              <span className="text-xs font-semibold text-emerald-400 uppercase tracking-wider">History</span>
-              <h3 className="mt-2 font-semibold text-white">Submissions</h3>
-              <p className="mt-1 text-sm text-slate-400">Review past graded attempts.</p>
+              <div>
+                <h3 className="text-lg font-black text-zinc-900 tracking-tighter uppercase leading-none">History Logs</h3>
+                <p className="mt-2 text-xs text-zinc-400 font-bold uppercase tracking-wider">Historical Performance Data</p>
+              </div>
+              <span className="text-xl group-hover:translate-x-1 transition-transform opacity-0 group-hover:opacity-100">→</span>
             </button>
           </div>
         </section>

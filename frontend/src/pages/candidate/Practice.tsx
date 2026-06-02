@@ -28,9 +28,9 @@ export const Practice = () => {
 
   if (loading) {
     return (
-      <AppShell title="Practice" subtitle="Loading problems…">
-        <div className="flex justify-center py-20">
-          <div className="h-10 w-10 animate-spin rounded-full border-2 border-slate-700 border-t-emerald-500" />
+      <AppShell title="Problem Set" subtitle="Synchronizing challenge records…">
+        <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-20 text-center text-zinc-400 text-xs font-bold uppercase tracking-widest animate-pulse">
+          Loading library…
         </div>
       </AppShell>
     );
@@ -38,54 +38,54 @@ export const Practice = () => {
 
   return (
     <AppShell
-      title="Practice"
-      subtitle="Solve problems outside of timed assessments. Same editor, no grade pressure."
+      title="Problem set"
+      subtitle="Develop your core technical skills with independent coding challenges. Zero performance pressure."
       wide
     >
-      <div className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-3">Difficulty</p>
-        <div className="flex flex-wrap gap-2">
+      <div className="mb-10">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-4 ml-1">Threshold Filter</p>
+        <div className="flex flex-wrap gap-3">
           {['all', 'easy', 'medium', 'hard'].map((level) => (
             <button
               key={level}
               type="button"
               onClick={() => setFilter(level)}
-              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors ${
+              className={`rounded-xl px-6 py-2.5 text-[10px] font-black uppercase tracking-widest transition-all ${
                 filter === level
-                  ? 'bg-emerald-600 text-white'
-                  : 'border border-slate-700 bg-slate-900/50 text-slate-300 hover:border-slate-600'
+                  ? 'bg-zinc-900 text-white shadow-xl shadow-zinc-200'
+                  : 'bg-white border border-zinc-200 text-zinc-400 hover:border-zinc-900 hover:text-zinc-900'
               }`}
             >
-              {level.charAt(0).toUpperCase() + level.slice(1)}
+              {level}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {questions.map((q) => (
           <button
             key={q.id}
             type="button"
             onClick={() => navigate(`/practice/${q.id}`)}
-            className="w-full text-left rounded-xl border border-slate-800 bg-slate-900/50 p-5 hover:border-slate-600 transition-colors group"
+            className="w-full text-left rounded-2xl border border-zinc-200 bg-white p-8 hover:border-zinc-900 transition-all shadow-sm hover:shadow-xl group"
           >
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-8">
               <div className="min-w-0">
-                <h3 className="text-lg font-semibold text-white group-hover:text-emerald-300 transition-colors">
+                <h3 className="text-xl font-black text-zinc-900 tracking-tighter uppercase leading-none group-hover:underline underline-offset-8">
                   {q.title}
                 </h3>
-                {q.description ? (
-                  <p className="mt-1 text-sm text-slate-400 line-clamp-2">{q.description}</p>
-                ) : null}
-                <div className="mt-3 flex flex-wrap gap-2">
+                {q.description && (
+                  <p className="mt-3 text-sm text-zinc-500 font-medium line-clamp-2 max-w-2xl">{q.description}</p>
+                )}
+                <div className="mt-6 flex flex-wrap gap-3">
                   <span
-                    className={`rounded-md px-2 py-0.5 text-xs font-semibold ${
+                    className={`rounded-md px-2 py-1 text-[9px] font-black uppercase tracking-widest border ${
                       q.difficulty === 'easy'
-                        ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                        ? 'bg-zinc-50 text-zinc-500 border-zinc-100'
                         : q.difficulty === 'medium'
-                          ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30'
-                          : 'bg-rose-500/15 text-rose-400 border border-rose-500/30'
+                          ? 'bg-zinc-500 text-white border-zinc-500'
+                          : 'bg-zinc-900 text-white border-zinc-900'
                     }`}
                   >
                     {q.difficulty}
@@ -93,15 +93,15 @@ export const Practice = () => {
                   {q.tags.map((tag) => (
                     <span
                       key={tag}
-                      className="rounded-md border border-slate-700 bg-slate-800/80 px-2 py-0.5 text-xs text-slate-400"
+                      className="rounded-md border border-zinc-100 bg-zinc-50 px-2 py-1 text-[9px] font-bold text-zinc-400 uppercase tracking-widest"
                     >
                       {tag}
                     </span>
                   ))}
                 </div>
               </div>
-              <span className="shrink-0 rounded-lg bg-slate-800 px-4 py-2 text-sm font-semibold text-white group-hover:bg-emerald-600 transition-colors">
-                Open
+              <span className="shrink-0 rounded-xl bg-zinc-900 px-6 py-3 text-[10px] font-black uppercase tracking-widest text-white group-hover:bg-zinc-800 transition-all shadow-lg active:scale-[0.98]">
+                Initialize Editor
               </span>
             </div>
           </button>
@@ -109,8 +109,8 @@ export const Practice = () => {
       </div>
 
       {questions.length === 0 && (
-        <div className="rounded-xl border border-dashed border-slate-700 bg-slate-900/30 py-16 text-center">
-          <p className="text-slate-400 text-sm">No problems match this filter.</p>
+        <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/30 py-24 text-center shadow-inner">
+          <p className="text-zinc-300 text-[10px] font-black uppercase tracking-widest italic">No matching records synchronization</p>
         </div>
       )}
     </AppShell>

@@ -21,6 +21,13 @@ export const errorHandler = (
 ) => {
   logger.error('Error:', err);
 
+  // Set CORS headers so the browser can read the error response
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+
   if (err instanceof AppError) {
     return res.status(err.statusCode).json({
       success: false,
@@ -80,6 +87,11 @@ export const errorHandler = (
 };
 
 export const notFound = (req: Request, res: Response) => {
+  const origin = req.headers.origin;
+  if (origin) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
   res.status(404).json({
     success: false,
     error: {

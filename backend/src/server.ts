@@ -4,11 +4,24 @@ import { logger } from './utils/logger';
 import prisma from './config/database';
 import redis from './config/redis';
 
+const connectWithRetry = async (retries = 5, delay = 2000) => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      await prisma.$connect();
+      logger.info('✅ Database connected');
+      return;
+    } catch (error) {
+      logger.error(`Database connection attempt ${i + 1} failed. Retrying in ${delay}ms...`);
+      if (i === retries - 1) throw error;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+};
+
 const startServer = async () => {
   try {
-    // Test database connection
-    await prisma.$connect();
-    logger.info('✅ Database connected');
+    // Test database connection with retry
+    await connectWithRetry();
 
     // Test Redis connection (optional)
     if (redis) {
