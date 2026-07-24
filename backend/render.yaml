@@ -2,6 +2,7 @@ services:
   - type: web
     name: coding-platform-backend
     runtime: node
+    rootDir: backend
     plan: free
     buildCommand: npm install && npm run build
     startCommand: npm run start
