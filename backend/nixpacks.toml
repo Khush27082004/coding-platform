@@ -1,8 +1,11 @@
 [phases.setup]
 nixpkgs = ["gcc", "g++", "openjdk", "python3"]
 
+[phases.install]
+cmds = ["npm install --prefer-offline"]
+
 [phases.build]
-cmds = ["npm ci", "npm run build"]
+cmds = ["npm run build"]
 
 [phases.start]
 cmd = "npm run start"
