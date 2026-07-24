@@ -1,0 +1,35 @@
+services:
+  - type: web
+    name: coding-platform-backend
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: coding-platform-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGIN
+        sync: false
+      - key: JUDGE0_ENABLED
+        value: true
+      - key: JUDGE0_HOST
+        value: judge0-ce.p.rapidapi.com
+      - key: JUDGE0_API_KEY
+        sync: false
+      - key: DOCKER_ENABLED
+        value: false
+      - key: REDIS_URL
+        value: ""
+
+databases:
+  - name: coding-platform-db
+    plan: free
+    databaseName: coding_platform
+    user: coding_platform_user
