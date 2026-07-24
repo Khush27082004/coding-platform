@@ -2,7 +2,7 @@
 nixpkgs = ["gcc", "g++", "openjdk", "python3"]
 
 [phases.install]
-cmds = ["npm install --prefer-offline"]
+cmds = ["npm install --cache /tmp/.npm-cache"]
 
 [phases.build]
 cmds = ["npm run build"]
