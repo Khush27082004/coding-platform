@@ -2,7 +2,7 @@
 nixpkgs = ["gcc", "g++", "openjdk", "python3"]
 
 [phases.build]
-cmds = ["npm install", "npm run build"]
+cmds = ["npm ci", "npm run build"]
 
 [phases.start]
 cmd = "npm run start"
