@@ -12,7 +12,8 @@ export class AdminController {
         message: 'All test attempts and question submissions have been reset.',
         count: result.count,
       });
-    } catch (error) {
+    } 
+    catch (error) {
       next(error);
     }
   }

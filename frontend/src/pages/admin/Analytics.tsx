@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import api from '../../services/api';
 import { AppShell } from '../../components/AppShell';
+import { RefreshCw, BookOpen, ClipboardList, Send, TrendingUp, Search } from 'lucide-react';
 
 type ResultRow = {
   id: string;
@@ -56,19 +57,64 @@ export const Analytics = () => {
     })();
   }, [fetchAllResults]);
 
-  const fmt = (v?: string | null) => v ? new Date(v).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
+  const fmt = (v?: string | null) =>
+    v ? new Date(v).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
 
   const filteredRows = rows.filter((r) => {
     const matchFilter = filter === 'all' || (filter === 'passed' ? r.passed : !r.passed);
     const q = searchQuery.toLowerCase();
-    const matchSearch = !q || r.candidateName.toLowerCase().includes(q) || r.candidateEmail.toLowerCase().includes(q) || r.assessmentTitle.toLowerCase().includes(q);
+    const matchSearch =
+      !q ||
+      r.candidateName.toLowerCase().includes(q) ||
+      r.candidateEmail.toLowerCase().includes(q) ||
+      r.assessmentTitle.toLowerCase().includes(q);
     return matchFilter && matchSearch;
   });
 
   const passCount = rows.filter((r) => r.passed).length;
-  const avgScore = rows.length > 0
-    ? Math.round(rows.reduce((s, r) => s + (r.maxScore > 0 ? (r.score / r.maxScore) * 100 : 0), 0) / rows.length)
-    : 0;
+  const avgScore =
+    rows.length > 0
+      ? Math.round(rows.reduce((s, r) => s + (r.maxScore > 0 ? (r.score / r.maxScore) * 100 : 0), 0) / rows.length)
+      : 0;
+
+  const statCards = [
+    {
+      label: 'Questions',
+      value: stats.totalQuestions,
+      icon: <BookOpen size={18} />,
+      color: 'emerald',
+      bg: 'bg-emerald-500/10',
+      text: 'text-emerald-400',
+      border: 'border-emerald-500/15',
+    },
+    {
+      label: 'Assessments',
+      value: stats.totalAssessments,
+      icon: <ClipboardList size={18} />,
+      color: 'sky',
+      bg: 'bg-sky-500/10',
+      text: 'text-sky-400',
+      border: 'border-sky-500/15',
+    },
+    {
+      label: 'Submissions',
+      value: rows.length,
+      icon: <Send size={18} />,
+      color: 'violet',
+      bg: 'bg-violet-500/10',
+      text: 'text-violet-400',
+      border: 'border-violet-500/15',
+    },
+    {
+      label: 'Pass Rate',
+      value: rows.length > 0 ? `${Math.round((passCount / rows.length) * 100)}%` : '—',
+      icon: <TrendingUp size={18} />,
+      color: 'amber',
+      bg: 'bg-amber-500/10',
+      text: 'text-amber-400',
+      border: 'border-amber-500/15',
+    },
+  ];
 
   return (
     <AppShell
@@ -80,152 +126,181 @@ export const Analytics = () => {
           type="button"
           onClick={() => fetchAllResults()}
           disabled={resultsLoading}
-          className="flex items-center gap-2 rounded-lg border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 transition-colors disabled:opacity-50"
+          className="btn-ghost text-xs gap-2"
         >
-          <svg className={`w-3.5 h-3.5 ${resultsLoading ? 'animate-spin' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-          </svg>
+          <RefreshCw size={14} className={resultsLoading ? 'animate-spin' : ''} />
           Refresh
         </button>
       }
     >
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Questions', value: stats.totalQuestions, color: 'text-emerald-400' },
-          { label: 'Assessments', value: stats.totalAssessments, color: 'text-sky-400' },
-          { label: 'Submissions', value: rows.length, color: 'text-violet-400' },
-          { label: 'Pass Rate', value: rows.length > 0 ? `${Math.round((passCount / rows.length) * 100)}%` : '—', color: 'text-amber-400' },
-        ].map((s) => (
-          <div key={s.label} className="rounded-xl border border-slate-800 bg-slate-900/50 p-5">
-            <div className="text-xs font-semibold uppercase tracking-wider text-slate-500">{s.label}</div>
-            <div className={`mt-2 text-3xl font-semibold tabular-nums ${s.color}`}>{s.value}</div>
-          </div>
-        ))}
-      </div>
-
-      {/* Scoreboard */}
-      <div className="rounded-xl border border-slate-800 bg-slate-900/50 overflow-hidden">
-        <div className="px-5 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3">
-          <div>
-            <h2 className="text-base font-semibold text-white">Candidate Scoreboard</h2>
-            {lastRefreshed && (
-              <p className="text-xs text-slate-500 mt-0.5">Last updated: {lastRefreshed.toLocaleTimeString()}</p>
-            )}
-          </div>
-          <div className="flex items-center gap-3 sm:ml-auto flex-wrap">
-            {/* Search */}
-            <div className="relative">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search candidate / assessment…"
-                className="bg-slate-800 border border-slate-700 text-white text-xs pl-8 pr-3 py-2 rounded-lg focus:outline-none focus:ring-1 focus:ring-slate-500 w-52 placeholder-slate-500"
-              />
+      <div className="space-y-6 animate-fade-in">
+        {/* Stat cards */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {statCards.map((s) => (
+            <div
+              key={s.label}
+              className={`card p-5 flex items-start gap-4`}
+            >
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${s.bg} border ${s.border}`}>
+                <span className={s.text}>{s.icon}</span>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{s.label}</p>
+                <p className={`mt-1 text-2xl font-bold tabular-nums ${s.text}`}>{s.value}</p>
+              </div>
             </div>
-            {/* Filter buttons */}
-            <div className="flex rounded-lg border border-slate-700 overflow-hidden">
-              {(['all', 'passed', 'failed'] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFilter(f)}
-                  className={`px-3 py-1.5 text-xs font-semibold transition-colors capitalize ${
-                    filter === f ? 'bg-slate-700 text-white' : 'bg-transparent text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {f}
-                </button>
-              ))}
-            </div>
-          </div>
+          ))}
         </div>
 
-        {resultsLoading ? (
-          <div className="py-16 text-center text-slate-500 text-sm">
-            <div className="w-8 h-8 rounded-full border-2 border-slate-700 border-t-slate-400 animate-spin mx-auto mb-3" />
-            Loading scores…
-          </div>
-        ) : filteredRows.length === 0 ? (
-          <div className="py-16 text-center text-slate-500 text-sm">
-            {rows.length === 0 ? 'No submissions yet. Assign tests and have candidates submit.' : 'No results match your filter.'}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-800 text-left text-xs font-semibold uppercase tracking-wider text-slate-500 bg-slate-900/30">
-                  <th className="px-5 py-3">Candidate</th>
-                  <th className="px-5 py-3">Context</th>
-                  <th className="px-5 py-3">Question</th>
-                  <th className="px-5 py-3">Status</th>
-                  <th className="px-5 py-3">Tests Passed</th>
-                  <th className="px-5 py-3">Score</th>
-                  <th className="px-5 py-3">Submitted At</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-800/60">
-                {filteredRows.map((row) => {
-                  const pct = row.maxScore > 0 ? Math.round((row.score / row.maxScore) * 100) : 0;
-                  return (
-                    <tr key={row.id} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="px-5 py-3.5">
-                        <div className="font-semibold text-white">{row.candidateName}</div>
-                        <div className="text-xs text-slate-500">{row.candidateEmail}</div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                          row.isPractice ? 'bg-purple-500/10 text-purple-400 border border-purple-500/20'
-                          : 'bg-sky-500/10 text-sky-400 border border-sky-500/20'
-                        }`}>
-                          {row.assessmentTitle}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-300 text-xs font-medium">
-                        {row.questionTitle}
-                        <div className="text-[10px] text-slate-500 uppercase mt-0.5">{row.language}</div>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
-                          row.status === 'completed' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                          : row.status === 'error' ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                          : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                        }`}>
-                          {row.status}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3.5">
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden">
-                            <div
-                              className={`h-full rounded-full ${pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-500' : 'bg-red-500'}`}
-                              style={{ width: `${pct}%` }}
-                            />
-                          </div>
-                          <span className="text-xs text-slate-400 font-mono">{row.passedTests}/{row.totalTests}</span>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3.5 tabular-nums">
-                        <span className="text-white font-semibold">{row.score}</span>
-                        <span className="text-slate-500">/{row.maxScore}</span>
-                      </td>
-                      <td className="px-5 py-3.5 text-slate-500 text-xs whitespace-nowrap">{fmt(row.submittedAt)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+        {/* Scoreboard */}
+        <div className="card overflow-hidden">
+          {/* Table header with controls */}
+          <div className="px-5 py-4 border-b border-slate-800 flex flex-col sm:flex-row sm:items-center gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-white">Candidate Scoreboard</h2>
+              {lastRefreshed && (
+                <p className="text-xs text-slate-600 mt-0.5">
+                  Updated {lastRefreshed.toLocaleTimeString()}
+                </p>
+              )}
+            </div>
 
-            {/* Footer summary */}
-            <div className="px-5 py-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-500">
-              <span>{filteredRows.length} of {rows.length} entries shown</span>
-              <span>Avg score: <span className="text-slate-300 font-semibold">{avgScore}%</span> · Passed: <span className="text-emerald-400 font-semibold">{passCount}</span> · Failed: <span className="text-rose-400 font-semibold">{rows.length - passCount}</span></span>
+            <div className="flex items-center gap-2.5 sm:ml-auto flex-wrap">
+              {/* Search */}
+              <div className="relative group">
+                <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors pointer-events-none" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search candidate or assessment…"
+                  className="input-dark pl-8 text-xs py-2 w-52"
+                />
+              </div>
+
+              {/* Filter pills */}
+              <div className="flex rounded-xl border border-slate-800 overflow-hidden">
+                {(['all', 'passed', 'failed'] as const).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => setFilter(f)}
+                    className={`px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                      filter === f
+                        ? 'bg-slate-700 text-white'
+                        : 'text-slate-500 hover:text-slate-300'
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
-        )}
+
+          {/* Table content */}
+          {resultsLoading ? (
+            <div className="py-16 text-center">
+              <div className="w-8 h-8 rounded-full border-2 border-slate-800 border-t-indigo-500 animate-spin mx-auto mb-3" />
+              <p className="text-slate-500 text-sm">Loading scores…</p>
+            </div>
+          ) : filteredRows.length === 0 ? (
+            <div className="py-16 text-center text-slate-500 text-sm">
+              {rows.length === 0
+                ? 'No submissions yet. Assign tests and have candidates submit.'
+                : 'No results match your filter.'}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th>Candidate</th>
+                    <th>Context</th>
+                    <th>Question</th>
+                    <th>Status</th>
+                    <th>Tests Passed</th>
+                    <th>Score</th>
+                    <th>Submitted At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredRows.map((row) => {
+                    const pct = row.maxScore > 0 ? Math.round((row.score / row.maxScore) * 100) : 0;
+                    return (
+                      <tr key={row.id}>
+                        <td>
+                          <div className="font-semibold text-white text-xs">{row.candidateName}</div>
+                          <div className="text-[11px] text-slate-600">{row.candidateEmail}</div>
+                        </td>
+                        <td>
+                          <span
+                            className={`badge border ${
+                              row.isPractice
+                                ? 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                                : 'bg-sky-500/10 text-sky-400 border-sky-500/20'
+                            }`}
+                          >
+                            {row.assessmentTitle}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="text-xs text-slate-300 font-medium">{row.questionTitle}</div>
+                          <div className="text-[10px] text-slate-600 uppercase mt-0.5">{row.language}</div>
+                        </td>
+                        <td>
+                          <span
+                            className={`badge border ${
+                              row.status === 'completed'
+                                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                                : row.status === 'error'
+                                ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                                : 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                            }`}
+                          >
+                            {row.status}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="flex items-center gap-2">
+                            <div className="w-16 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full rounded-full ${
+                                  pct >= 100 ? 'bg-emerald-500' : pct > 0 ? 'bg-amber-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                            <span className="text-xs text-slate-500 tabular-nums">
+                              {row.passedTests}/{row.totalTests}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="tabular-nums">
+                          <span className="text-white font-semibold text-xs">{row.score}</span>
+                          <span className="text-slate-600 text-xs">/{row.maxScore}</span>
+                        </td>
+                        <td className="text-[11px] whitespace-nowrap">{fmt(row.submittedAt)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+
+              {/* Footer */}
+              <div className="px-5 py-3 border-t border-slate-800 flex items-center justify-between text-xs text-slate-600">
+                <span>{filteredRows.length} of {rows.length} entries</span>
+                <span>
+                  Avg score:{' '}
+                  <span className="text-slate-300 font-semibold">{avgScore}%</span>
+                  {' · '}Passed:{' '}
+                  <span className="text-emerald-400 font-semibold">{passCount}</span>
+                  {' · '}Failed:{' '}
+                  <span className="text-rose-400 font-semibold">{rows.length - passCount}</span>
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </AppShell>
   );

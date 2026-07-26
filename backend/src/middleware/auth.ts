@@ -20,7 +20,10 @@ export const authenticate = (req: AuthRequest, res: Response, next: NextFunction
     const payload = verifyToken(token);
     req.user = payload;
     return next();
-  } catch (error) {
+    
+  } 
+  
+  catch (error) {
     return res.status(401).json({
       success: false,
       error: {

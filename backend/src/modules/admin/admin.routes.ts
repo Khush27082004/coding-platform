@@ -14,3 +14,4 @@ router.post('/delete-students', controller.deleteAllCandidates);
 router.post('/delete-tests', controller.deleteAllTestData);
 
 export default router;
+

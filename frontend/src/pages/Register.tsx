@@ -1,15 +1,29 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { User, Mail, Lock, ShieldCheck, UserPlus } from 'lucide-react';
+import { User, Mail, Lock, ShieldCheck, UserPlus, Eye, EyeOff, CheckCircle2 } from 'lucide-react';
+
+const roleGuide = [
+  {
+    role: 'Candidate',
+    desc: 'Practice problems and complete assessments assigned to you.',
+    icon: '🧑‍💻',
+  },
+  {
+    role: 'Admin',
+    desc: 'Create assessments, manage questions, and track candidate results.',
+    icon: '⚙️',
+  },
+];
 
 export const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [role, setRole] = useState('candidate');
+  const [role, setRole] = useState<'candidate' | 'admin'>('candidate');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { register } = useAuth();
   const navigate = useNavigate();
 
@@ -28,126 +42,199 @@ export const Register = () => {
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-[#020617] overflow-hidden px-4 font-['Outfit']">
-      {/* Decorative background elements */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-indigo-600/20 blur-[120px] rounded-full"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full"></div>
+    <div className="login-root">
+      {/* ── Ambient background ── */}
+      <div className="login-bg-orb login-bg-orb--reg1" />
+      <div className="login-bg-orb login-bg-orb--reg2" />
+      <div className="login-dot-grid" />
 
-      <div className="w-full max-w-md z-10">
-        <div className="glass-morphism-dark p-8 rounded-2xl border border-white/10 shadow-2xl">
-          <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600/20 rounded-2xl mb-4 border border-indigo-500/30">
-              <UserPlus className="text-indigo-400 w-8 h-8" />
-            </div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">Create account</h2>
-            <p className="text-slate-400 mt-2">Join <span className="text-indigo-400 font-semibold text-lg">Code7</span> today</p>
+      {/* ── Left panel ── */}
+      <div className="login-left">
+        {/* Brand */}
+        <div className="login-brand">
+          <div className="login-brand-icon">C7</div>
+          <div>
+            <span className="login-brand-name">Code7</span>
+            <span className="login-brand-sub">Coding Platform</span>
+          </div>
+        </div>
+
+        {/* Hero */}
+        <div className="login-hero">
+          <div className="login-live-pill">
+            <span className="login-live-dot" />
+            Join Today — Free
           </div>
 
+          <h1 className="login-headline">
+            Start Your&nbsp;
+            <span className="login-headline-gradient">Journey</span>
+            <br />
+            Today
+          </h1>
+
+          <p className="login-subheadline">
+            Create your account in seconds and join thousands of engineers sharpening their skills on Code7.
+          </p>
+
+          {/* Role descriptions */}
+          <ul className="login-features">
+            {roleGuide.map((r, i) => (
+              <li key={i} className="login-feature-item">
+                <span className="login-feature-icon" style={{ fontSize: '1rem' }}>
+                  {r.icon}
+                </span>
+                <div>
+                  <p className="login-feature-title">{r.role}</p>
+                  <p className="login-feature-desc">{r.desc}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <p className="login-left-footer">© 2025 Code7 Platform · Built for excellence</p>
+      </div>
+
+      {/* ── Divider ── */}
+      <div className="login-divider" />
+
+      {/* ── Right panel – Form ── */}
+      <div className="login-right">
+        {/* Mobile brand */}
+        <div className="login-mobile-brand">
+          <div className="login-brand-icon">C7</div>
+          <span className="login-brand-name">Code7</span>
+        </div>
+
+        <div className="login-card">
+          {/* Card header */}
+          <div className="login-card-header">
+            <div className="login-card-icon-wrap">
+              <CheckCircle2 size={22} className="login-card-icon" />
+            </div>
+            <h2 className="login-card-title">Create account</h2>
+            <p className="login-card-subtitle">
+              Join <span>Code7</span> today
+            </p>
+          </div>
+
+          {/* Error */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-6 text-sm flex items-start space-x-2">
-              <span className="font-bold underline decoration-red-500/30 uppercase tracking-wider">Error:</span>
+            <div className="login-error" role="alert">
+              <span>⚠</span>
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div>
-              <label className="block text-slate-300 text-sm font-medium mb-1.5 ml-1">Full Name</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <User className="h-4.5 w-4.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                </div>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="login-form" noValidate>
+            {/* Full Name */}
+            <div className="login-field">
+              <label className="login-label" htmlFor="reg-name">Full Name</label>
+              <div className="login-input-wrap">
+                <User size={15} className="login-input-icon" />
                 <input
+                  id="reg-name"
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+                  className="login-input"
                   placeholder="John Doe"
+                  autoComplete="name"
                   required
                   minLength={2}
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-slate-300 text-sm font-medium mb-1.5 ml-1">Email Address</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Mail className="h-4.5 w-4.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                </div>
+            {/* Email */}
+            <div className="login-field">
+              <label className="login-label" htmlFor="reg-email">Email Address</label>
+              <div className="login-input-wrap">
+                <Mail size={15} className="login-input-icon" />
                 <input
+                  id="reg-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+                  className="login-input"
                   placeholder="name@example.com"
+                  autoComplete="email"
                   required
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block text-slate-300 text-sm font-medium mb-1.5 ml-1">Password</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Lock className="h-4.5 w-4.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                </div>
+            {/* Password */}
+            <div className="login-field">
+              <label className="login-label" htmlFor="reg-password">Password</label>
+              <div className="login-input-wrap">
+                <Lock size={15} className="login-input-icon" />
                 <input
-                  type="password"
+                  id="reg-password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
-                  placeholder="••••••••"
+                  className="login-input"
+                  placeholder="Min. 6 characters"
+                  autoComplete="new-password"
                   required
                   minLength={6}
                 />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-slate-300 text-sm font-medium mb-1.5 ml-1">Account Role</label>
-              <div className="relative group shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <ShieldCheck className="h-4.5 w-4.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                </div>
-                <select
-                  value={role}
-                  onChange={(e) => setRole(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all appearance-none cursor-pointer"
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="login-eye-btn"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
                 >
-                  <option value="candidate" className="bg-slate-900">Candidate</option>
-                  <option value="admin" className="bg-slate-900">Admin</option>
-                </select>
-                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none border-l border-white/10 ml-2 pl-2">
-                  <svg className="h-4 w-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
               </div>
             </div>
 
+            {/* Role selector */}
+            <div className="login-field">
+              <label className="login-label">Account Role</label>
+              <div className="reg-role-grid">
+                {(['candidate', 'admin'] as const).map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRole(r)}
+                    className={`reg-role-btn ${role === r ? 'reg-role-btn--active' : ''}`}
+                  >
+                    <ShieldCheck size={14} className={role === r ? 'reg-role-icon--active' : 'reg-role-icon'} />
+                    <span className="capitalize">{r}</span>
+                    {role === r && <span className="reg-role-check">✓</span>}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-600/20 transform transition-all active:scale-[0.98] mt-2 flex items-center justify-center space-x-2 disabled:opacity-70"
+              className="login-submit"
             >
               {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span className="login-spinner" />
               ) : (
                 <>
-                  <UserPlus className="w-5 h-5" />
-                  <span>Get Started</span>
+                  <UserPlus size={16} />
+                  Get Started
                 </>
               )}
             </button>
           </form>
 
-          <div className="mt-8 text-center text-slate-500 text-sm">
+          {/* Sign in link */}
+          <p className="login-register-link" style={{ marginTop: '1.25rem' }}>
             Already have an account?{' '}
-            <Link to="/login" className="text-indigo-400 font-bold hover:text-indigo-300 transition-colors">
-              Sign In
-            </Link>
-          </div>
+            <Link to="/login">Sign In</Link>
+          </p>
         </div>
       </div>
     </div>

@@ -13,10 +13,12 @@ export const generateToken = (payload: JWTPayload): string => {
   });
 };
 
-export const verifyToken = (token: string): JWTPayload => {
+export const verifyToken = (token: string): JWTPayload => { 
+  //accepts jwt token and returns the payload if valid, otherwise throws an error 
   try {
     return jwt.verify(token, env.JWT_SECRET) as JWTPayload;
-  } catch (error) {
+  } 
+  catch (error) {
     throw new Error('Invalid or expired token');
   }
 };

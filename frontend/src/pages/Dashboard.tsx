@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useEffect, useState } from 'react';
 import api from '../services/api';
 import { AppShell } from '../components/AppShell';
+import { BookOpen, ClipboardList, Code2, History, Clock, Star, ChevronRight, PlayCircle } from 'lucide-react';
 
 type AssignedAssessment = {
   id: string;
@@ -12,6 +13,13 @@ type AssignedAssessment = {
   totalScore?: number;
   userAssessments?: { status: string; score?: number }[];
 };
+
+function getGreeting() {
+  const h = new Date().getHours();
+  if (h < 12) return 'Good morning';
+  if (h < 17) return 'Good afternoon';
+  return 'Good evening';
+}
 
 export const Dashboard = () => {
   const { user } = useAuth();
@@ -33,72 +41,105 @@ export const Dashboard = () => {
         if (!cancelled) setLoadingTests(false);
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [user?.role]);
 
+  /* ── Admin Dashboard ── */
   if (user?.role === 'admin') {
     return (
       <AppShell
         title="Command center"
         subtitle="Orchestrate your questions, assessments, and candidate analytics."
       >
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <button
-            type="button"
-            onClick={() => navigate('/admin/questions')}
-            className="group text-left rounded-2xl border border-zinc-200 bg-white p-8 hover:border-zinc-900 transition-all shadow-sm hover:shadow-xl hover:-translate-y-1"
-          >
-            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 group-hover:text-zinc-900 transition-colors">Question Bank</div>
-            <h2 className="text-2xl font-black text-zinc-900 tracking-tighter uppercase leading-none">
-              Questions
-            </h2>
-            <p className="mt-3 text-sm text-zinc-500 font-medium">Curate and manage your collection of coding challenges.</p>
-            <div className="mt-8 flex items-center text-xs font-black text-zinc-900 gap-1 opacity-0 group-hover:opacity-100 transition-all">
-              Manage Collection <span className="text-lg">→</span>
+        <div className="space-y-8 animate-fade-in">
+          {/* Greeting */}
+          <div className="rounded-2xl bg-gradient-to-br from-indigo-600/15 to-purple-600/10 border border-indigo-500/15 p-6">
+            <p className="text-xs font-bold text-indigo-400 uppercase tracking-widest mb-1">{getGreeting()}</p>
+            <h2 className="text-2xl font-bold text-white">{user.fullName} 👋</h2>
+            <p className="text-sm text-slate-400 mt-1">Here's your admin dashboard overview.</p>
+          </div>
+
+          {/* Quick action cards */}
+          <div>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-4">Quick Actions</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {[
+                {
+                  icon: <BookOpen size={22} className="text-indigo-400" />,
+                  label: 'Question Bank',
+                  title: 'Questions',
+                  desc: 'Curate and manage your collection of coding challenges.',
+                  to: '/admin/questions',
+                  color: 'indigo',
+                },
+                {
+                  icon: <ClipboardList size={22} className="text-purple-400" />,
+                  label: 'Test Logistics',
+                  title: 'Assessments',
+                  desc: 'Schedule evaluations and monitor candidate performance.',
+                  to: '/admin/assessments',
+                  color: 'purple',
+                },
+              ].map((card) => (
+                <button
+                  key={card.to}
+                  type="button"
+                  onClick={() => navigate(card.to)}
+                  className="group text-left card card-interactive p-6 flex items-start gap-5"
+                >
+                  <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-${card.color}-500/10 border border-${card.color}-500/15 group-hover:bg-${card.color}-500/15 transition-colors`}>
+                    {card.icon}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1">
+                      {card.label}
+                    </p>
+                    <h3 className="text-base font-bold text-white">{card.title}</h3>
+                    <p className="text-xs text-slate-500 mt-1 leading-relaxed">{card.desc}</p>
+                  </div>
+                  <ChevronRight size={16} className="text-slate-600 group-hover:text-indigo-400 group-hover:translate-x-1 transition-all shrink-0 mt-1" />
+                </button>
+              ))}
             </div>
-          </button>
-          
-          <button
-            type="button"
-            onClick={() => navigate('/admin/assessments')}
-            className="group text-left rounded-2xl border border-zinc-200 bg-white p-8 hover:border-zinc-900 transition-all shadow-sm hover:shadow-xl hover:-translate-y-1"
-          >
-            <div className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-3 group-hover:text-zinc-900 transition-colors">Test Logistics</div>
-            <h2 className="text-2xl font-black text-zinc-900 tracking-tighter uppercase leading-none">
-              Assessments
-            </h2>
-            <p className="mt-3 text-sm text-zinc-500 font-medium">Schedule evaluations and monitor candidate performance.</p>
-            <div className="mt-8 flex items-center text-xs font-black text-zinc-900 gap-1 opacity-0 group-hover:opacity-100 transition-all">
-              Evaluation Center <span className="text-lg">→</span>
-            </div>
-          </button>
+          </div>
         </div>
       </AppShell>
     );
   }
 
+  /* ── Candidate Dashboard ── */
   return (
     <AppShell
-      title={`Session: ${user?.fullName?.split(' ')[0] || 'Member'}`}
+      title={`${getGreeting()}, ${user?.fullName?.split(' ')[0] || 'Member'}`}
       subtitle="Access your active assessments and skill development tools."
     >
-      <div className="space-y-12">
+      <div className="space-y-8 animate-fade-in">
+        {/* Assigned Assessments */}
         <section>
-          <div className="flex items-center justify-between gap-4 mb-6 border-b border-zinc-100 pb-4">
-            <h2 className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em]">Assigned Evaluations</h2>
-            <div className="h-1 flex-1 bg-zinc-50 rounded-full ml-4 hidden sm:block" />
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              Assigned Evaluations
+            </h2>
+            <div className="h-px flex-1 bg-slate-800 ml-4" />
           </div>
 
           {loadingTests ? (
-            <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-12 text-center text-zinc-400 text-xs font-bold uppercase tracking-widest animate-pulse">
-              Synchronizing assessments…
+            <div className="space-y-3">
+              {[1, 2].map((i) => (
+                <div key={i} className="rounded-2xl border border-slate-800 p-6 space-y-3">
+                  <div className="skeleton h-4 w-48 rounded" />
+                  <div className="skeleton h-3 w-72 rounded" />
+                  <div className="skeleton h-10 w-full rounded-xl mt-4" />
+                </div>
+              ))}
             </div>
           ) : assigned.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-12 text-center shadow-inner">
-              <p className="text-zinc-400 text-sm font-bold uppercase tracking-wide">No pending tests</p>
-              <p className="text-zinc-300 text-[10px] mt-2 font-bold uppercase tracking-widest">Awaiting administrator assignment</p>
+            <div className="empty-state">
+              <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center mb-4">
+                <ClipboardList size={22} className="text-slate-600" />
+              </div>
+              <p className="text-slate-400 font-semibold text-sm">No assigned assessments</p>
+              <p className="text-slate-600 text-xs mt-1">Awaiting administrator assignment</p>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
@@ -107,30 +148,34 @@ export const Dashboard = () => {
                 const rawStatus = ua?.status || 'not_started';
                 const statusLabel = rawStatus.replace('_', ' ');
                 const isCompleted = rawStatus === 'completed';
-                
+
                 return (
                   <div
                     key={a.id}
-                    className="rounded-2xl border border-zinc-200 bg-white p-6 flex flex-col shadow-sm hover:shadow-md transition-shadow"
+                    className="card p-6 flex flex-col"
                   >
-                    <div className="flex-1">
-                      <div className="flex items-start justify-between">
-                        <h3 className="text-xl font-black text-zinc-900 tracking-tighter uppercase">{a.title}</h3>
-                        <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-md border ${
-                          isCompleted ? 'bg-zinc-100 text-zinc-400 border-zinc-200' : 'bg-zinc-900 text-white border-zinc-900'
-                        }`}>
-                          {statusLabel}
-                        </span>
-                      </div>
-                      {a.description && (
-                        <p className="mt-2 text-sm text-zinc-500 font-medium line-clamp-2">{a.description}</p>
-                      )}
-                      <div className="mt-4 flex flex-wrap gap-4 text-[10px] font-black text-zinc-400 uppercase tracking-widest">
-                        <span className="flex items-center gap-1">🕒 {a.duration} MIN</span>
-                        {a.totalScore != null && <span className="flex items-center gap-1">💎 {a.totalScore} PTS</span>}
-                      </div>
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <h3 className="text-base font-bold text-white leading-tight">{a.title}</h3>
+                      <span className={`shrink-0 badge ${isCompleted ? 'bg-slate-700/60 text-slate-400 border-slate-700' : 'bg-indigo-500/15 text-indigo-300 border-indigo-500/25'}`}>
+                        {statusLabel}
+                      </span>
                     </div>
-                    
+
+                    {a.description && (
+                      <p className="text-xs text-slate-500 line-clamp-2 mb-3 leading-relaxed">{a.description}</p>
+                    )}
+
+                    <div className="flex flex-wrap gap-4 text-xs font-semibold text-slate-500 mb-5">
+                      <span className="flex items-center gap-1.5">
+                        <Clock size={12} className="text-slate-600" /> {a.duration} min
+                      </span>
+                      {a.totalScore != null && (
+                        <span className="flex items-center gap-1.5">
+                          <Star size={12} className="text-slate-600" /> {a.totalScore} pts
+                        </span>
+                      )}
+                    </div>
+
                     <button
                       type="button"
                       onClick={async () => {
@@ -155,20 +200,20 @@ export const Dashboard = () => {
                         }
                       }}
                       disabled={isCompleted || startingId === a.id}
-                      className={`mt-6 w-full py-3 rounded-xl text-[10px] font-black uppercase tracking-[0.2em] transition-all shadow-lg ${
+                      className={`mt-auto w-full py-2.5 rounded-xl text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 ${
                         isCompleted
-                          ? 'bg-white border border-zinc-200 text-zinc-400 hover:bg-zinc-50 shadow-none'
-                          : startingId === a.id 
-                            ? 'bg-zinc-100 text-zinc-400 cursor-not-allowed shadow-none'
-                            : 'bg-zinc-900 text-white hover:bg-zinc-800 shadow-zinc-200'
+                          ? 'bg-slate-800 text-slate-500 cursor-default'
+                          : startingId === a.id
+                            ? 'bg-slate-800 text-slate-500 cursor-not-allowed'
+                            : 'btn-primary'
                       }`}
                     >
                       {startingId === a.id ? (
-                        'Initializing…'
+                        <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Initializing…</>
                       ) : isCompleted ? (
-                        'Review submission'
+                        'Review Submission'
                       ) : (
-                        rawStatus === 'not_started' ? 'Begin Session' : 'Resume Session'
+                        <><PlayCircle size={14} /> {rawStatus === 'not_started' ? 'Begin Session' : 'Resume Session'}</>
                       )}
                     </button>
                   </div>
@@ -178,35 +223,46 @@ export const Dashboard = () => {
           )}
         </section>
 
+        {/* Development Tools */}
         <section>
-          <div className="flex items-center justify-between gap-4 mb-6 border-b border-zinc-100 pb-4">
-            <h2 className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.3em]">Development Tools</h2>
-            <div className="h-1 flex-1 bg-zinc-50 rounded-full ml-4 hidden sm:block" />
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
+              Development Tools
+            </h2>
+            <div className="h-px flex-1 bg-slate-800 ml-4" />
           </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <button
-              type="button"
-              onClick={() => navigate('/practice')}
-              className="group rounded-2xl border border-zinc-100 bg-white p-6 text-left hover:border-zinc-900 transition-all shadow-sm flex items-center justify-between"
-            >
-              <div>
-                <h3 className="text-lg font-black text-zinc-900 tracking-tighter uppercase leading-none">Solution Set</h3>
-                <p className="mt-2 text-xs text-zinc-400 font-bold uppercase tracking-wider">Independent Skill Refinement</p>
-              </div>
-              <span className="text-xl group-hover:translate-x-1 transition-transform opacity-0 group-hover:opacity-100">→</span>
-            </button>
-            
-            <button
-              type="button"
-              onClick={() => navigate('/submissions')}
-              className="group rounded-2xl border border-zinc-100 bg-white p-6 text-left hover:border-zinc-900 transition-all shadow-sm flex items-center justify-between"
-            >
-              <div>
-                <h3 className="text-lg font-black text-zinc-900 tracking-tighter uppercase leading-none">History Logs</h3>
-                <p className="mt-2 text-xs text-zinc-400 font-bold uppercase tracking-wider">Historical Performance Data</p>
-              </div>
-              <span className="text-xl group-hover:translate-x-1 transition-transform opacity-0 group-hover:opacity-100">→</span>
-            </button>
+            {[
+              {
+                icon: <Code2 size={20} className="text-indigo-400" />,
+                title: 'Practice Problems',
+                desc: 'Independent skill refinement',
+                to: '/practice',
+              },
+              {
+                icon: <History size={20} className="text-purple-400" />,
+                title: 'Submission History',
+                desc: 'Historical performance data',
+                to: '/submissions',
+              },
+            ].map((tool) => (
+              <button
+                key={tool.to}
+                type="button"
+                onClick={() => navigate(tool.to)}
+                className="group card card-interactive p-5 text-left flex items-center gap-4"
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-800 group-hover:bg-slate-700 transition-colors">
+                  {tool.icon}
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-sm font-bold text-white">{tool.title}</h3>
+                  <p className="text-xs text-slate-500 mt-0.5">{tool.desc}</p>
+                </div>
+                <ChevronRight size={15} className="text-slate-600 group-hover:text-slate-300 group-hover:translate-x-1 transition-all shrink-0" />
+              </button>
+            ))}
           </div>
         </section>
       </div>

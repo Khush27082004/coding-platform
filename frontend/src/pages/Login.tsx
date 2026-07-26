@@ -1,13 +1,32 @@
 import { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate, Link } from 'react-router-dom';
-import { Mail, Lock, LogIn } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Zap, ShieldCheck, BarChart3, CheckCircle2, Eye, EyeOff } from 'lucide-react';
+
+const features = [
+  {
+    icon: <Zap size={14} />,
+    title: 'AI-Powered Feedback',
+    desc: 'Real-time code analysis and hints',
+  },
+  {
+    icon: <ShieldCheck size={14} />,
+    title: 'Secure & Proctored',
+    desc: 'Tab-switch detection, zero cheating',
+  },
+  {
+    icon: <BarChart3 size={14} />,
+    title: 'Deep Analytics',
+    desc: 'Track every candidate in detail',
+  },
+];
 
 export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
@@ -19,95 +38,233 @@ export const Login = () => {
       await login(email, password);
       navigate('/');
     } catch (err: any) {
-      setError(err.response?.data?.error?.message || 'Login failed');
+      setError(err.response?.data?.error?.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center bg-[#020617] overflow-hidden px-4 font-['Outfit']">
-      {/* Decorative background elements */}
-      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/20 blur-[120px] rounded-full"></div>
-      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full"></div>
+    <div className="login-root">
+      {/* ── Ambient background ── */}
+      <div className="login-bg-orb login-bg-orb--1" />
+      <div className="login-bg-orb login-bg-orb--2" />
+      <div className="login-bg-orb login-bg-orb--3" />
+      <div className="login-dot-grid" />
 
-      <div className="w-full max-w-md z-10">
-        <div className="glass-morphism-dark p-8 rounded-2xl border border-white/10 shadow-2xl">
-          <div className="mb-8 text-center">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-600/20 rounded-2xl mb-4 border border-indigo-500/30">
-              <LogIn className="text-indigo-400 w-8 h-8" />
-            </div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">Welcome Back</h2>
-            <p className="text-slate-400 mt-2">Sign in to <span className="text-indigo-400 font-semibold text-lg">Code7</span></p>
+      {/* ── Left panel ── */}
+      <div className="login-left">
+        {/* Brand */}
+        <div className="login-brand">
+          <div className="login-brand-icon">C7</div>
+          <div>
+            <span className="login-brand-name">Code7</span>
+            <span className="login-brand-sub">Coding Platform</span>
+          </div>
+        </div>
+
+        {/* Hero */}
+        <div className="login-hero">
+          <div className="login-live-pill">
+            <span className="login-live-dot" />
+            Live Platform
           </div>
 
+          <h1 className="login-headline">
+            Assess &amp;&nbsp;
+            <span className="login-headline-gradient">Elevate</span>
+            <br />
+            Your Team
+          </h1>
+
+          <p className="login-subheadline">
+            A modern technical hiring platform built for speed,
+            accuracy, and exceptional candidate experience.
+          </p>
+
+          {/* Feature list */}
+          <ul className="login-features">
+            {features.map((f, i) => (
+              <li key={i} className="login-feature-item" style={{ animationDelay: `${i * 100}ms` }}>
+                <span className="login-feature-icon">{f.icon}</span>
+                <div>
+                  <p className="login-feature-title">{f.title}</p>
+                  <p className="login-feature-desc">{f.desc}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {/* Social proof */}
+          <div className="login-social-proof">
+            <div className="login-avatar-stack">
+              {['A', 'B', 'C', 'D'].map((l, i) => (
+                <div key={i} className="login-avatar" style={{ marginLeft: i ? '-8px' : 0 }}>
+                  {l}
+                </div>
+              ))}
+            </div>
+            <p className="login-social-text">
+              Trusted by <span>500+</span> engineering teams
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <p className="login-left-footer">© 2025 Code7 Platform · Built for excellence</p>
+      </div>
+
+      {/* ── Divider ── */}
+      <div className="login-divider" />
+
+      {/* ── Right panel – Form ── */}
+      <div className="login-right">
+        {/* Mobile brand */}
+        <div className="login-mobile-brand">
+          <div className="login-brand-icon">C7</div>
+          <span className="login-brand-name">Code7</span>
+        </div>
+
+        <div className="login-card">
+          {/* Card header */}
+          <div className="login-card-header">
+            <div className="login-card-icon-wrap">
+              <CheckCircle2 size={22} className="login-card-icon" />
+            </div>
+            <h2 className="login-card-title">Welcome back</h2>
+            <p className="login-card-subtitle">
+              Sign in to your <span>Code7</span> account
+            </p>
+          </div>
+
+          {/* Error */}
           {error && (
-            <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl mb-6 text-sm flex items-start space-x-2">
-              <span className="font-bold underline decoration-red-500/30 uppercase tracking-wider">Error:</span>
+            <div className="login-error" role="alert">
+              <span>⚠</span>
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-slate-300 text-sm font-medium mb-1.5 ml-1">Email Address</label>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Mail className="h-4.5 w-4.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                </div>
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="login-form" noValidate>
+            {/* Email field */}
+            <div className="login-field">
+              <label className="login-label" htmlFor="login-email">
+                Email Address
+              </label>
+              <div className="login-input-wrap">
+                <Mail size={15} className="login-input-icon" />
                 <input
+                  id="login-email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+                  className="login-input"
                   placeholder="name@example.com"
+                  autoComplete="email"
                   required
                 />
               </div>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1.5 ml-1">
-                <label className="block text-slate-300 text-sm font-medium">Password</label>
-                <a href="#" className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors">Forgot password?</a>
+            {/* Password field */}
+            <div className="login-field">
+              <div className="login-label-row">
+                <label className="login-label" htmlFor="login-password">
+                  Password
+                </label>
+                <a href="#" className="login-forgot">Forgot password?</a>
               </div>
-              <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-                  <Lock className="h-4.5 w-4.5 text-slate-500 group-focus-within:text-indigo-400 transition-colors" />
-                </div>
+              <div className="login-input-wrap">
+                <Lock size={15} className="login-input-icon" />
                 <input
-                  type="password"
+                  id="login-password"
+                  type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full pl-11 pr-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:border-indigo-500/50 transition-all"
+                  className="login-input"
                   placeholder="••••••••"
+                  autoComplete="current-password"
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="login-eye-btn"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
               </div>
             </div>
 
+            {/* Submit */}
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 text-white py-3.5 rounded-xl font-bold shadow-lg shadow-indigo-600/20 transform transition-all active:scale-[0.98] flex items-center justify-center space-x-2 disabled:opacity-70 mt-4"
+              className="login-submit"
             >
               {loading ? (
-                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                <span className="login-spinner" />
               ) : (
                 <>
-                  <LogIn className="w-5 h-5" />
-                  <span>Sign In</span>
+                  Sign In
+                  <ArrowRight size={16} className="login-submit-arrow" />
                 </>
               )}
             </button>
           </form>
 
-          <div className="mt-8 text-center text-slate-500 text-sm">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-indigo-400 font-bold hover:text-indigo-300 transition-colors">
-              Create one
-            </Link>
+          {/* Divider */}
+          <div className="login-or">
+            <span />
+            <p>or try a demo account</p>
+            <span />
           </div>
+
+          {/* Demo credentials */}
+          <div className="login-demo-grid">
+            {[
+              {
+                role: 'Admin',
+                email: 'Admin@gmail.com',
+                password: '12345678',
+                icon: '⚙️',
+                color: 'indigo',
+              },
+              {
+                role: 'Candidate',
+                email: 'demo@code7.com',
+                password: 'demo123',
+                icon: '🧑‍💻',
+                color: 'purple',
+              },
+            ].map((d) => (
+              <button
+                key={d.role}
+                type="button"
+                onClick={() => {
+                  setEmail(d.email);
+                  setPassword(d.password);
+                }}
+                className={`login-demo-btn login-demo-btn--${d.color}`}
+              >
+                <span className="login-demo-icon">{d.icon}</span>
+                <div className="login-demo-info">
+                  <p className="login-demo-role">{d.role}</p>
+                  <p className="login-demo-email">{d.email}</p>
+                </div>
+                <span className="login-demo-fill">Use →</span>
+              </button>
+            ))}
+          </div>
+
+          {/* Register link */}
+          <p className="login-register-link">
+            Don't have an account?{' '}
+            <Link to="/register">Create one</Link>
+          </p>
         </div>
       </div>
     </div>

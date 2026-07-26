@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import api from '../../services/api';
 import { Assessment, Question } from '../../types';
+import { AppShell } from '../../components/AppShell';
+import { Plus, Search, Pencil, ClipboardList, ChevronDown, ChevronUp, X } from 'lucide-react';
 
 type ResultRow = {
   userAssessmentId: string;
@@ -21,10 +23,9 @@ type ResultsData = {
   rows: ResultRow[];
 };
 
-// ─── tiny helpers ────────────────────────────────────────────────────────────
 const fmt = (v?: string | null) => (v ? new Date(v).toLocaleString() : '—');
 
-const Badge = ({ status }: { status: string }) => {
+const StatusBadge = ({ status }: { status: string }) => {
   const s = status.replace(/_/g, ' ');
   const cls =
     status === 'completed'
@@ -33,13 +34,11 @@ const Badge = ({ status }: { status: string }) => {
       ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
       : 'bg-slate-700/60 text-slate-400 border-slate-700';
   return (
-    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-widest border ${cls}`}>
-      {s}
-    </span>
+    <span className={`badge border ${cls}`}>{s}</span>
   );
 };
 
-// ─── Modal wrapper ────────────────────────────────────────────────────────────
+// ── Modal ─────────────────────────────────────────────────────────────────────
 const Modal = ({
   title,
   onClose,
@@ -51,16 +50,19 @@ const Modal = ({
   children: React.ReactNode;
   wide?: boolean;
 }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+  <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-fade-in">
     <div
-      className={`bg-[#0f1117] border border-slate-800 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] w-full ${
-        wide ? 'max-w-2xl' : 'max-w-md'
+      className={`bg-[#0d1424] border border-slate-700/60 rounded-2xl shadow-2xl flex flex-col max-h-[90vh] w-full ${
+        wide ? 'max-w-2xl' : 'max-w-lg'
       }`}
     >
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
         <h2 className="text-base font-bold text-white">{title}</h2>
-        <button onClick={onClose} className="text-slate-500 hover:text-white text-xl leading-none">
-          ×
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-white/8 transition-colors"
+        >
+          <X size={18} />
         </button>
       </div>
       <div className="flex-1 overflow-y-auto">{children}</div>
@@ -68,29 +70,36 @@ const Modal = ({
   </div>
 );
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ── Form field components ──────────────────────────────────────────────────────
+const Field = ({ label, children }: { label: string; children: React.ReactNode }) => (
+  <div>
+    <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+      {label}
+    </label>
+    {children}
+  </div>
+);
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export const Assessments = () => {
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // scoreboard
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [results, setResults] = useState<Record<string, ResultsData>>({});
   const [resultsLoading, setResultsLoading] = useState<Record<string, boolean>>({});
 
-  const filteredAssessments = assessments.filter(a => 
+  const filteredAssessments = assessments.filter(a =>
     a.title?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // create modal
   const [showCreate, setShowCreate] = useState(false);
   const [allQuestions, setAllQuestions] = useState<Question[]>([]);
   const [selQIds, setSelQIds] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ title: '', description: '', duration: 60, passingScore: 50, isActive: true });
 
-  // edit modal
   const [showEdit, setShowEdit] = useState(false);
   const [editTarget, setEditTarget] = useState<Assessment | null>(null);
   const [editSelQIds, setEditSelQIds] = useState<string[]>([]);
@@ -116,9 +125,7 @@ export const Assessments = () => {
     try {
       const r = await api.get('/assessments');
       setAssessments(r.data.data ?? []);
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
   };
 
   const loadQuestions = async () => {
@@ -173,7 +180,6 @@ export const Assessments = () => {
     setEditSelQIds([]);
     setLoadingQuestions(true);
     setShowEdit(true);
-
     try {
       const r = await api.get(`/assessments/${a.id}`);
       const aqs = r.data.data.assessmentQuestions || [];
@@ -196,8 +202,8 @@ export const Assessments = () => {
       });
       setShowEdit(false);
       loadAssessments();
-    } catch (err: any) { 
-      alert(err.response?.data?.error?.message || 'Edit failed. Check console.'); 
+    } catch (err: any) {
+      alert(err.response?.data?.error?.message || 'Edit failed. Check console.');
     }
     finally { setEditing(false); }
   };
@@ -210,109 +216,239 @@ export const Assessments = () => {
     setEditSelQIds(p => (p.includes(id) ? p.filter(x => x !== id) : [...p, id]));
   };
 
-  // ─── render ─────────────────────────────────────────────────────────────────
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-100">
-      <div className="max-w-6xl mx-auto px-4 sm:px-8 py-10">
+  // ── Shared form content ──────────────────────────────────────────────────────
+  const FormFields = ({
+    f,
+    setF,
+    qIds,
+    toggleFn,
+    isEdit,
+  }: {
+    f: typeof form;
+    setF: (v: typeof form) => void;
+    qIds: string[];
+    toggleFn: (id: string) => void;
+    isEdit?: boolean;
+  }) => (
+    <div className="p-6 space-y-5">
+      <Field label="Title *">
+        <input
+          required
+          value={f.title}
+          onChange={e => setF({ ...f, title: e.target.value })}
+          placeholder="e.g. Backend Engineering Round 1"
+          className="input-dark"
+        />
+      </Field>
 
-        {/* Page header */}
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-white tracking-tight">Assessments</h1>
-            <p className="text-sm text-slate-500 mt-1">Create tests, assign candidates, and track results.</p>
-          </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-5 py-2.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20"
-          >
-            <span className="text-lg leading-none">+</span>
-            Create Assessment
-          </button>
+      <Field label="Description">
+        <textarea
+          rows={2}
+          value={f.description}
+          onChange={e => setF({ ...f, description: e.target.value })}
+          placeholder="Optional instructions for candidates…"
+          className="input-dark resize-none"
+        />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-4">
+        <Field label="Duration (min)">
+          <input
+            type="number"
+            min={5}
+            max={360}
+            value={f.duration}
+            onChange={e => setF({ ...f, duration: parseInt(e.target.value) || 60 })}
+            className="input-dark"
+          />
+        </Field>
+        <Field label="Passing Score">
+          <input
+            type="number"
+            min={0}
+            value={f.passingScore}
+            onChange={e => setF({ ...f, passingScore: parseInt(e.target.value) || 0 })}
+            className="input-dark"
+          />
+        </Field>
+      </div>
+
+      {/* Question picker */}
+      <div>
+        <div className="flex items-center justify-between mb-1.5">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+            Questions {!isEdit && '*'}
+          </label>
+          <span className="text-xs text-slate-500">
+            {loadingQuestions ? 'Loading…' : `${qIds.length} selected`}
+          </span>
         </div>
-
-        {/* Filters */}
-        {!loading && assessments.length > 0 && (
-          <div className="mb-6">
-            <div className="relative max-w-md">
-              <input
-                type="text"
-                placeholder="Search assessments..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-2.5 pl-10 text-sm text-white placeholder-slate-600 focus:border-indigo-500/50 focus:outline-none focus:ring-1 focus:ring-indigo-500/50"
-              />
-              <svg className="absolute left-3.5 top-3.5 h-4 w-4 text-slate-500" style={{ width: '18px', height: '18px' }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+        <div className={`bg-slate-900/80 border rounded-xl overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-800/60 ${
+          isEdit && (f.isActive || loadingQuestions) ? 'border-slate-800 opacity-60' : 'border-slate-700'
+        }`}>
+          {loadingQuestions ? (
+            <div className="px-4 py-8 text-center">
+              <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+              <p className="text-slate-500 text-xs">Fetching questions…</p>
             </div>
+          ) : allQuestions.length === 0 ? (
+            <p className="px-4 py-6 text-center text-slate-600 text-sm">No questions found.</p>
+          ) : (
+            allQuestions.map(q => {
+              const sel = qIds.includes(q.id);
+              const disabled = isEdit && (f.isActive || loadingQuestions);
+              return (
+                <div
+                  key={q.id}
+                  onClick={() => !disabled && toggleFn(q.id)}
+                  className={`flex items-center justify-between px-4 py-3 transition-colors ${
+                    disabled ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-slate-800/50'
+                  } ${sel && !disabled ? 'bg-indigo-600/8' : ''}`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${
+                      sel ? 'bg-indigo-600 border-indigo-600' : 'border-slate-600'
+                    }`}>
+                      {sel && <span className="text-white text-[10px] leading-none">✓</span>}
+                    </div>
+                    <span className="text-sm text-slate-200 font-medium truncate">{q.title}</span>
+                    <span className={`badge shrink-0 ${
+                      q.difficulty === 'easy' ? 'badge-easy' :
+                      q.difficulty === 'medium' ? 'badge-medium' : 'badge-hard'
+                    }`}>{q.difficulty}</span>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+        {isEdit && f.isActive && !loadingQuestions && (
+          <p className="text-[10px] text-amber-400/80 mt-1.5">
+            🔒 Questions are locked while the test is Active. Switch to Inactive to edit.
+          </p>
+        )}
+      </div>
+
+      {/* Active toggle */}
+      <label className={`flex items-center gap-3 p-4 border rounded-xl transition-all cursor-pointer ${
+        f.isActive ? 'border-emerald-500/40 bg-emerald-500/5' : 'border-slate-700 hover:border-slate-600'
+      }`}>
+        <div className="relative flex items-center shrink-0">
+          <input
+            type="checkbox"
+            className="sr-only"
+            checked={f.isActive}
+            disabled={isEdit && loadingQuestions}
+            onChange={e => setF({ ...f, isActive: e.target.checked })}
+          />
+          <div className={`w-10 h-6 rounded-full transition-colors ${f.isActive ? 'bg-emerald-500' : 'bg-slate-700'}`} />
+          <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full shadow transition-transform ${f.isActive ? 'translate-x-4' : ''}`} />
+        </div>
+        <div>
+          <div className="text-sm font-semibold text-white leading-none">Assessment Active</div>
+          <div className="text-xs text-slate-500 mt-0.5">Candidates can view and start this test.</div>
+        </div>
+      </label>
+    </div>
+  );
+
+  // ── Render ────────────────────────────────────────────────────────────────────
+  return (
+    <AppShell
+      title="Assessments"
+      subtitle="Create tests, assign candidates, and track results."
+      actions={
+        <button onClick={() => setShowCreate(true)} className="btn-primary">
+          <Plus size={16} />
+          Create Assessment
+        </button>
+      }
+    >
+      <div className="space-y-4 animate-fade-in">
+        {/* Search */}
+        {!loading && assessments.length > 0 && (
+          <div className="relative max-w-sm group">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search assessments…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input-dark pl-10 text-sm"
+            />
           </div>
         )}
 
-        {/* Assessment list */}
+        {/* List */}
         {loading ? (
-          <div className="py-20 text-center text-slate-600 animate-pulse">Loading assessments…</div>
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="rounded-xl border border-slate-800 p-5 space-y-3">
+                <div className="skeleton h-4 w-48 rounded" />
+                <div className="skeleton h-3 w-64 rounded" />
+              </div>
+            ))}
+          </div>
         ) : assessments.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-800 py-20 text-center">
-            <div className="text-4xl mb-4">📋</div>
-            <p className="text-slate-400 font-semibold">No assessments yet</p>
-            <p className="text-slate-600 text-sm mt-1">Click "Create Assessment" to get started</p>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="mt-6 bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold px-6 py-2.5 rounded-xl transition-all"
-            >
-              Create your first assessment
+          <div className="empty-state">
+            <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center mb-4">
+              <ClipboardList size={22} className="text-slate-600" />
+            </div>
+            <p className="text-slate-400 font-semibold text-sm">No assessments yet</p>
+            <p className="text-slate-600 text-xs mt-1">Click "Create Assessment" to get started</p>
+            <button onClick={() => setShowCreate(true)} className="btn-primary mt-4 text-xs">
+              <Plus size={14} /> Create Assessment
             </button>
           </div>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredAssessments.map(a => (
-              <div key={a.id} className="rounded-2xl border border-slate-800 bg-slate-900/40 overflow-hidden">
-
+              <div key={a.id} className="card overflow-hidden">
                 {/* Card header */}
-                <div className="p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div>
-                    <h3 className="text-lg font-bold text-white">{a.title}</h3>
+                <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                      <h3 className="text-sm font-bold text-white">{a.title}</h3>
+                      {a.isActive !== false ? (
+                        <span className="inline-flex items-center gap-1 badge bg-emerald-500/10 text-emerald-400 border-emerald-500/20">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 badge bg-slate-700/50 text-slate-500 border-slate-700">
+                          <span className="w-1.5 h-1.5 rounded-full bg-slate-600" />
+                          Inactive
+                        </span>
+                      )}
+                    </div>
                     {a.description && (
-                      <p className="text-sm text-slate-500 mt-0.5 line-clamp-1">{a.description}</p>
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-1">{a.description}</p>
                     )}
-                    <div className="flex flex-wrap gap-4 mt-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                      <span className="flex items-center gap-1.5">
-                        <span className="text-slate-600">⏱</span> {a.duration} min
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="text-slate-600">🏆</span> {a.totalScore ?? 0} pts
-                      </span>
-                      <span className="flex items-center gap-1.5">
-                        <span className="text-slate-600">✅</span> Pass: {a.passingScore}
-                      </span>
+                    <div className="flex flex-wrap gap-4 mt-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                      <span>⏱ {a.duration} min</span>
+                      <span>🏆 {a.totalScore ?? 0} pts</span>
+                      <span>✅ Pass: {a.passingScore}</span>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
-                    {a.isActive !== false ? (
-                      <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 flex items-center h-[34px] rounded-lg text-[10px] font-bold uppercase tracking-widest leading-none shadow-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse"></span>
-                        Active
-                      </span>
-                    ) : (
-                      <span className="bg-slate-800/80 text-slate-400 border border-slate-700 px-2 py-1 flex items-center h-[34px] rounded-lg text-[10px] font-bold uppercase tracking-widest leading-none shadow-sm">
-                        <span className="w-1.5 h-1.5 rounded-full bg-slate-500 mr-1.5"></span>
-                        Inactive
-                      </span>
-                    )}
                     <button
                       onClick={() => openEdit(a)}
-                      className="text-sm font-bold px-4 py-2 rounded-xl border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-800 hover:border-slate-600 transition-all"
+                      className="btn-ghost text-xs gap-1.5"
                     >
+                      <Pencil size={13} />
                       Edit
                     </button>
                     <button
                       onClick={() => toggleScoreboard(a.id)}
-                      className={`text-sm font-bold px-4 py-2 rounded-xl transition-all ${
+                      className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all border ${
                         expandedId === a.id
-                          ? 'bg-indigo-600 text-white'
-                          : 'bg-slate-800 text-slate-400 hover:text-white'
+                          ? 'bg-indigo-600 text-white border-indigo-600'
+                          : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:border-slate-600'
                       }`}
                     >
-                      {expandedId === a.id ? 'Hide Results' : 'View Results'}
+                      {expandedId === a.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                      Results
                     </button>
                   </div>
                 </div>
@@ -321,54 +457,52 @@ export const Assessments = () => {
                 {expandedId === a.id && (
                   <div className="border-t border-slate-800">
                     {resultsLoading[a.id] ? (
-                      <div className="py-10 text-center text-slate-600 animate-pulse">Loading results…</div>
+                      <div className="py-10 text-center">
+                        <div className="w-6 h-6 border-2 border-slate-700 border-t-indigo-500 rounded-full animate-spin mx-auto mb-2" />
+                        <p className="text-slate-600 text-xs">Loading results…</p>
+                      </div>
                     ) : !results[a.id] || results[a.id].rows.length === 0 ? (
                       <div className="py-10 text-center">
-                        <p className="text-slate-500">No candidates have started this assessment yet.</p>
+                        <p className="text-slate-500 text-sm">No candidates have started this assessment yet.</p>
                       </div>
                     ) : (
                       <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
+                        <table className="data-table">
                           <thead>
-                            <tr className="text-[11px] font-bold uppercase tracking-widest text-slate-600 border-b border-slate-800">
-                              <th className="px-6 py-3 text-left">Candidate</th>
-                              <th className="px-6 py-3 text-left">Status</th>
-                              <th className="px-6 py-3 text-left">Tab Switches</th>
-                              <th className="px-6 py-3 text-left">Score</th>
-                              <th className="px-6 py-3 text-left">Result</th>
-                              <th className="px-6 py-3 text-right">Completed</th>
+                            <tr>
+                              <th>Candidate</th>
+                              <th>Status</th>
+                              <th>Tab Switches</th>
+                              <th>Score</th>
+                              <th>Result</th>
+                              <th className="text-right">Completed</th>
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-slate-800/60">
+                          <tbody>
                             {results[a.id].rows.map(r => (
-                              <tr key={r.userAssessmentId} className="hover:bg-slate-800/20 transition-colors">
-                                <td className="px-6 py-4">
-                                  <div className="font-semibold text-white">{r.candidateName}</div>
-                                  <div className="text-xs text-slate-500">{r.candidateEmail}</div>
+                              <tr key={r.userAssessmentId}>
+                                <td>
+                                  <div className="font-semibold text-white text-xs">{r.candidateName}</div>
+                                  <div className="text-[11px] text-slate-600">{r.candidateEmail}</div>
                                 </td>
-                                <td className="px-6 py-4">
-                                  <Badge status={r.status} />
-                                </td>
-                                <td className="px-6 py-4">
-                                  <span className={`font-bold ${r.tabSwitches >= 2 ? 'text-red-400' : r.tabSwitches === 1 ? 'text-amber-400' : 'text-slate-400'}`}>
+                                <td><StatusBadge status={r.status} /></td>
+                                <td>
+                                  <span className={`font-bold text-xs ${r.tabSwitches >= 2 ? 'text-red-400' : r.tabSwitches === 1 ? 'text-amber-400' : 'text-slate-400'}`}>
                                     {r.tabSwitches}
-                                    {r.tabSwitches >= 2 && <span className="ml-1 text-[10px]">⚠</span>}
+                                    {r.tabSwitches >= 2 && <span className="ml-1">⚠</span>}
                                   </span>
                                 </td>
-                                <td className="px-6 py-4 font-bold text-white">
-                                  {r.score}
-                                  <span className="text-slate-600 font-normal"> / {r.maxScore}</span>
+                                <td className="font-bold text-white text-xs">
+                                  {r.score}<span className="text-slate-600 font-normal"> / {r.maxScore}</span>
                                 </td>
-                                <td className="px-6 py-4">
+                                <td>
                                   {r.status === 'completed' ? (
                                     r.passed
                                       ? <span className="text-emerald-400 font-bold text-xs">PASSED</span>
                                       : <span className="text-red-400 font-bold text-xs">FAILED</span>
                                   ) : <span className="text-slate-600 text-xs">—</span>}
                                 </td>
-                                <td className="px-6 py-4 text-right text-xs text-slate-500">
-                                  {fmt(r.completedAt)}
-                                </td>
+                                <td className="text-right text-[11px] text-slate-500">{fmt(r.completedAt)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -383,272 +517,45 @@ export const Assessments = () => {
         )}
       </div>
 
-      {/* ── Create Assessment Modal ─────────────────────────────────────────── */}
+      {/* Create Modal */}
       {showCreate && (
         <Modal title="Create Assessment" onClose={() => setShowCreate(false)} wide>
-          <form onSubmit={handleCreate} className="p-6 space-y-5">
-            {/* Title */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Title *
-              </label>
-              <input
-                required
-                value={form.title}
-                onChange={e => setForm({ ...form, title: e.target.value })}
-                placeholder="e.g. Backend Engineering Round 1"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors"
-              />
+          <form onSubmit={handleCreate}>
+            <FormFields f={form} setF={setForm} qIds={selQIds} toggleFn={toggleQ} />
+            <div className="px-6 pb-6">
+              <button
+                type="submit"
+                disabled={creating}
+                className="btn-primary w-full py-3"
+              >
+                {creating ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Creating…</>
+                ) : '🚀 Publish Assessment'}
+              </button>
             </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Description
-              </label>
-              <textarea
-                rows={2}
-                value={form.description}
-                onChange={e => setForm({ ...form, description: e.target.value })}
-                placeholder="Optional instructions for candidates…"
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 transition-colors resize-none"
-              />
-            </div>
-
-            {/* Duration + Passing Score */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  min={5}
-                  max={360}
-                  value={form.duration}
-                  onChange={e => setForm({ ...form, duration: parseInt(e.target.value) || 60 })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Passing Score
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={form.passingScore}
-                  onChange={e => setForm({ ...form, passingScore: parseInt(e.target.value) || 0 })}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Question picker */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Questions *
-                </label>
-                <span className="text-xs text-slate-600">
-                  {selQIds.length} selected
-                </span>
-              </div>
-              <div className="bg-slate-900 border border-slate-700 rounded-xl overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-800">
-                {allQuestions.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-slate-600 text-sm">No questions found.</p>
-                ) : (
-                  allQuestions.map(q => {
-                    const sel = selQIds.includes(q.id);
-                    return (
-                      <div
-                        key={q.id}
-                        onClick={() => toggleQ(q.id)}
-                        className={`flex items-center justify-between px-4 py-3 cursor-pointer transition-colors ${sel ? 'bg-indigo-600/10' : 'hover:bg-slate-800'}`}
-                      >
-                        <div>
-                          <span className="text-sm font-semibold text-slate-200">{q.title}</span>
-                          <span className={`ml-2 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded ${
-                            q.difficulty === 'easy' ? 'bg-emerald-500/10 text-emerald-400' :
-                            q.difficulty === 'medium' ? 'bg-amber-500/10 text-amber-400' :
-                            'bg-red-500/10 text-red-400'
-                          }`}>{q.difficulty}</span>
-                        </div>
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${sel ? 'bg-indigo-600 border-indigo-600' : 'border-slate-700'}`}>
-                          {sel && <span className="text-white text-[10px]">✓</span>}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-
-            {/* Active Toggle for Create */}
-            <div className="pt-2">
-              <label className={`flex items-center gap-3 p-4 border rounded-xl transition-all cursor-pointer ${form.isActive ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'}`}>
-                <div className="relative flex items-center">
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={form.isActive}
-                    onChange={e => setForm(p => ({ ...p, isActive: e.target.checked }))}
-                  />
-                  <div className={`w-10 h-6 bg-slate-800 rounded-full transition-colors ${form.isActive ? 'bg-emerald-500' : ''}`}></div>
-                  <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${form.isActive ? 'translate-x-4' : ''}`}></div>
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-white leading-none">Assessment Active</div>
-                  <div className="text-xs text-slate-500 mt-1">If active, candidates can view and start this test.</div>
-                </div>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={creating}
-              className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20"
-            >
-              {creating ? 'Creating…' : '🚀 Publish Assessment'}
-            </button>
           </form>
         </Modal>
       )}
 
-      {/* ── Edit Assessment Modal ──────────────────────────────────────────── */}
+      {/* Edit Modal */}
       {showEdit && editTarget && (
-        <Modal title={`Edit: ${editTarget.title}`} onClose={() => setShowEdit(false)}>
-          <form onSubmit={handleEdit} className="p-6 space-y-5">
-            {/* Title */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Title *
-              </label>
-              <input
-                required
-                value={editForm.title}
-                onChange={e => setEditForm(p => ({ ...p, title: e.target.value }))}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
-              />
+        <Modal title={`Edit: ${editTarget.title}`} onClose={() => setShowEdit(false)} wide>
+          <form onSubmit={handleEdit}>
+            <FormFields f={editForm} setF={setEditForm} qIds={editSelQIds} toggleFn={toggleEditQ} isEdit />
+            <div className="px-6 pb-6">
+              <button
+                type="submit"
+                disabled={editing || loadingQuestions}
+                className="btn-primary w-full py-3"
+              >
+                {editing ? (
+                  <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving…</>
+                ) : loadingQuestions ? 'Loading…' : 'Save Changes'}
+              </button>
             </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                Description
-              </label>
-              <textarea
-                rows={2}
-                value={editForm.description}
-                onChange={e => setEditForm(p => ({ ...p, description: e.target.value }))}
-                className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors resize-none"
-              />
-            </div>
-
-            {/* Duration + Passing Score */}
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Duration (min)
-                </label>
-                <input
-                  type="number"
-                  min={5}
-                  value={editForm.duration}
-                  onChange={e => setEditForm(p => ({ ...p, duration: parseInt(e.target.value) || 60 }))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Passing Score
-                </label>
-                <input
-                  type="number"
-                  min={0}
-                  value={editForm.passingScore}
-                  onChange={e => setEditForm(p => ({ ...p, passingScore: parseInt(e.target.value) || 0 }))}
-                  className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-indigo-500 transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Question picker for Edit */}
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                  Questions
-                </label>
-                <span className="text-xs text-slate-600">
-                  {loadingQuestions ? 'Loading…' : `${editSelQIds.length} selected`}
-                </span>
-              </div>
-              <div className={`bg-slate-900 border ${editForm.isActive || loadingQuestions ? 'border-slate-800 opacity-60' : 'border-slate-700'} rounded-xl overflow-hidden max-h-48 overflow-y-auto divide-y divide-slate-800`}>
-                {loadingQuestions ? (
-                  <div className="px-4 py-8 text-center">
-                    <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
-                    <p className="text-slate-500 text-xs">Fetching current questions…</p>
-                  </div>
-                ) : allQuestions.length === 0 ? (
-                  <p className="px-4 py-6 text-center text-slate-600 text-sm">No questions found.</p>
-                ) : (
-                  allQuestions.map(q => {
-                    const sel = editSelQIds.includes(q.id);
-                    return (
-                      <div
-                        key={q.id}
-                        onClick={() => toggleEditQ(q.id)}
-                        className={`flex items-center justify-between px-4 py-3 ${editForm.isActive || loadingQuestions ? 'cursor-not-allowed' : 'cursor-pointer hover:bg-slate-800'} transition-colors ${sel && !editForm.isActive && !loadingQuestions ? 'bg-indigo-600/10' : ''}`}
-                      >
-                        <div>
-                          <span className="text-sm font-semibold text-slate-200">{q.title}</span>
-                        </div>
-                        <div className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 transition-colors ${sel ? 'bg-indigo-600 border-indigo-600' : 'border-slate-700'}`}>
-                          {sel && <span className="text-white text-[10px]">✓</span>}
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              {editForm.isActive && !loadingQuestions && (
-                <p className="text-[10px] text-amber-500/80 mt-1.5">
-                  🔒 Questions are locked while the test is Active. Switch to Inactive to re-enable editing.
-                </p>
-              )}
-            </div>
-
-            {/* Active Toggle */}
-            <div className="pt-2">
-              <label className={`flex items-center gap-3 p-4 border rounded-xl transition-all cursor-pointer ${editForm.isActive ? 'border-emerald-500/50 bg-emerald-500/5' : 'border-slate-700 bg-slate-900/50 hover:border-slate-600'}`}>
-                <div className="relative flex items-center">
-                  <input
-                    type="checkbox"
-                    disabled={loadingQuestions}
-                    className="sr-only"
-                    checked={editForm.isActive}
-                    onChange={e => setEditForm(p => ({ ...p, isActive: e.target.checked }))}
-                  />
-                  <div className={`w-10 h-6 bg-slate-800 rounded-full transition-colors ${editForm.isActive ? 'bg-emerald-500' : ''}`}></div>
-                  <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${editForm.isActive ? 'translate-x-4' : ''}`}></div>
-                </div>
-                <div>
-                  <div className="text-sm font-bold text-white leading-none">Assessment Active</div>
-                  <div className="text-xs text-slate-500 mt-1">If active, candidates can view and start this test.</div>
-                </div>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              disabled={editing || loadingQuestions}
-              className="w-full mt-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-bold py-3.5 rounded-xl transition-all shadow-lg shadow-indigo-500/20"
-            >
-              {editing ? 'Saving…' : loadingQuestions ? 'Loading…' : 'Save Changes'}
-            </button>
           </form>
         </Modal>
       )}
-    </div>
+    </AppShell>
   );
 };

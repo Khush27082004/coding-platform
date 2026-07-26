@@ -1,3 +1,10 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import api from '../../services/api';
+import { Question } from '../../types';
+import { AppShell } from '../../components/AppShell';
+import { Plus, Search, Pencil, Trash2, BookOpen } from 'lucide-react';
+
 export const Questions = () => {
   const navigate = useNavigate();
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -34,11 +41,22 @@ export const Questions = () => {
     }
   };
 
+  const difficultyConfig = {
+    easy:   { cls: 'badge-easy',   label: 'Easy' },
+    medium: { cls: 'badge-medium', label: 'Medium' },
+    hard:   { cls: 'badge-hard',   label: 'Hard' },
+  } as const;
+
   if (loading) {
     return (
-      <AppShell title="Internal Assets" subtitle="Synchronizing question data…">
-        <div className="rounded-2xl border border-zinc-100 bg-zinc-50/50 p-12 text-center text-zinc-400 text-xs font-bold uppercase tracking-widest animate-pulse">
-          Loading library…
+      <AppShell title="Question Library" subtitle="Synchronizing question data…">
+        <div className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="rounded-xl border border-slate-800 p-5 space-y-3">
+              <div className="skeleton h-4 w-56 rounded" />
+              <div className="skeleton h-3 w-32 rounded" />
+            </div>
+          ))}
         </div>
       </AppShell>
     );
@@ -46,92 +64,116 @@ export const Questions = () => {
 
   return (
     <AppShell
-      title="Question library"
+      title="Question Library"
       subtitle="The foundational challenges fueling your assessments and practice tiers."
       actions={
         <button
           type="button"
           onClick={() => navigate('/admin/questions/create')}
-          className="rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-black text-white hover:bg-zinc-800 transition-all uppercase tracking-widest shadow-xl shadow-zinc-200"
+          className="btn-primary"
         >
-          New challenge
+          <Plus size={16} />
+          New Question
         </button>
       }
     >
-      <div className="mb-8">
-        <div className="relative max-w-md group">
-          <input
-            type="text"
-            placeholder="FILTER BY ATTRIBUTES..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full rounded-2xl border border-zinc-200 bg-white px-5 py-3 pl-11 text-xs font-bold text-zinc-900 placeholder-zinc-300 focus:border-zinc-900 focus:outline-none focus:ring-4 focus:ring-zinc-900/5 transition-all shadow-sm group-hover:shadow-md"
-          />
-          <svg className="absolute left-4 top-3.5 h-4 w-4 text-zinc-400 group-hover:text-zinc-900 transition-colors" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        {filteredQuestions.map((q) => (
-          <div
-            key={q.id}
-            className="group rounded-2xl border border-zinc-200 bg-white p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6 hover:border-zinc-900 transition-all shadow-sm hover:shadow-lg"
-          >
-            <div className="min-w-0">
-              <h3 className="text-xl font-black text-zinc-900 tracking-tighter uppercase leading-none">{q.title}</h3>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span
-                  className={`rounded-md px-2 py-1 text-[9px] font-black uppercase tracking-widest border ${q.difficulty === 'easy'
-                      ? 'bg-zinc-100 text-zinc-600 border-zinc-200'
-                      : q.difficulty === 'medium'
-                        ? 'bg-zinc-500 text-white border-zinc-500'
-                        : 'bg-zinc-900 text-white border-zinc-900'
-                    }`}
-                >
-                  {q.difficulty}
-                </span>
-                {q.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-md border border-zinc-100 bg-zinc-50 px-2 py-1 text-[9px] font-bold text-zinc-400 uppercase tracking-widest"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-3 shrink-0">
-              <button
-                type="button"
-                onClick={() => navigate(`/admin/questions/${q.id}/edit`)}
-                className="rounded-xl border border-zinc-200 bg-white px-4 py-2 text-[10px] font-black text-zinc-500 hover:text-zinc-900 hover:border-zinc-900 transition-all uppercase tracking-widest"
-              >
-                Modify
-              </button>
-              <button
-                type="button"
-                onClick={() => deleteQuestion(q.id)}
-                className="rounded-xl border border-zinc-100 bg-zinc-50 px-4 py-2 text-[10px] font-black text-zinc-300 hover:text-red-600 hover:border-red-100 hover:bg-red-50 transition-all uppercase tracking-widest"
-              >
-                Archived
-              </button>
-            </div>
+      <div className="space-y-5 animate-fade-in">
+        {/* Search */}
+        {questions.length > 0 && (
+          <div className="relative max-w-sm group">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-indigo-400 transition-colors pointer-events-none" />
+            <input
+              type="text"
+              placeholder="Search by title or tag…"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="input-dark pl-10 text-sm"
+            />
           </div>
-        ))}
-      </div>
+        )}
 
-      {questions.length === 0 && (
-        <div className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/30 py-20 text-center shadow-inner">
-          <p className="text-zinc-300 text-xs font-black uppercase tracking-[0.2em]">Zero records found</p>
-          <button
-            type="button"
-            onClick={() => navigate('/admin/questions/create')}
-            className="mt-6 text-[11px] font-black text-zinc-900 hover:underline underline-offset-8 transition-all uppercase tracking-[0.1em]"
-          >
-            Initialize library protocol →
-          </button>
-        </div>
-      )}
+        {/* List */}
+        {filteredQuestions.length === 0 && !loading ? (
+          <div className="empty-state">
+            <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center mb-4">
+              <BookOpen size={22} className="text-slate-600" />
+            </div>
+            {questions.length === 0 ? (
+              <>
+                <p className="text-slate-400 font-semibold text-sm">No questions yet</p>
+                <p className="text-slate-600 text-xs mt-1">Create your first challenge to get started</p>
+                <button
+                  type="button"
+                  onClick={() => navigate('/admin/questions/create')}
+                  className="btn-primary mt-4 text-xs"
+                >
+                  <Plus size={14} /> Create Question
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-slate-400 font-semibold text-sm">No results found</p>
+                <p className="text-slate-600 text-xs mt-1">Try a different search term</p>
+              </>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-2.5">
+            {filteredQuestions.map((q) => {
+              const diff = difficultyConfig[q.difficulty as keyof typeof difficultyConfig] ?? { cls: 'badge-easy', label: q.difficulty };
+              return (
+                <div
+                  key={q.id}
+                  className="group card p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 hover:border-indigo-500/30"
+                >
+                  {/* Left — title + badges */}
+                  <div className="min-w-0 flex items-start gap-4">
+                    {/* Difficulty color bar */}
+                    <div className={`shrink-0 w-1 self-stretch rounded-full mt-0.5 ${
+                      q.difficulty === 'easy' ? 'bg-emerald-500' :
+                      q.difficulty === 'medium' ? 'bg-amber-500' : 'bg-red-500'
+                    }`} />
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-bold text-white truncate">{q.title}</h3>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        <span className={`badge ${diff.cls}`}>{diff.label}</span>
+                        {q.tags.map((tag) => (
+                          <span
+                            key={tag}
+                            className="badge bg-slate-700/50 text-slate-400 border-slate-700"
+                          >
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right — actions */}
+                  <div className="flex gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/admin/questions/${q.id}/edit`)}
+                      className="btn-ghost text-xs gap-1.5"
+                    >
+                      <Pencil size={13} />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => deleteQuestion(q.id)}
+                      className="flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-slate-500 hover:text-red-400 hover:bg-red-500/8 border border-transparent hover:border-red-500/20 transition-all"
+                    >
+                      <Trash2 size={13} />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
     </AppShell>
   );
 };

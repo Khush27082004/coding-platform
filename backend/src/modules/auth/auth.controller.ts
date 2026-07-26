@@ -5,19 +5,21 @@ import { AuthService } from './auth.service';
 const authService = new AuthService();
 
 export class AuthController {
+
   async register(req: AuthRequest, res: Response, next: NextFunction) {
     try {
       const result = await authService.register(req.body);
       res.status(201).json({
         success: true,
         data: result,
-      });
-    } catch (error) {
+      });  
+    } 
+    catch (error) {
       next(error);
     }
   }
 
-  async login(req: AuthRequest, res: Response, next: NextFunction) {
+  async login(req: AuthRequest, res: Response, next: NextFunction)    {
     try {
       const { email, password } = req.body;
       const result = await authService.login(email, password);
@@ -38,7 +40,8 @@ export class AuthController {
         success: true,
         data: user,
       });
-    } catch (error) {
+    } 
+    catch (error) {
       next(error);
     }
   }
@@ -59,7 +62,8 @@ export class AuthController {
         success: true,
         data: users,
       });
-    } catch (error) {
+    } 
+    catch (error) {
       next(error);
     }
   }
