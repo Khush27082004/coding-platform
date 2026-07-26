@@ -161,7 +161,7 @@ export const Login = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="login-input"
                   placeholder="name@example.com"
-                  autoComplete="email"
+                  autoComplete="new-email"
                   required
                 />
               </div>
@@ -184,7 +184,7 @@ export const Login = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   className="login-input"
                   placeholder="••••••••"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   required
                 />
                 <button

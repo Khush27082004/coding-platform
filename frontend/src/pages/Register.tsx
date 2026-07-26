@@ -160,7 +160,7 @@ export const Register = () => {
                   onChange={(e) => setEmail(e.target.value)}
                   className="login-input"
                   placeholder="name@example.com"
-                  autoComplete="email"
+                  autoComplete="new-email"
                   required
                 />
               </div>
