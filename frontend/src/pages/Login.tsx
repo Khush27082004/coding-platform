@@ -228,15 +228,15 @@ export const Login = () => {
             {[
               {
                 role: 'Admin',
-                email: 'Admin@gmail.com',
-                password: '12345678',
+                email: 'admin@example.com',
+                password: 'Admin123!',
                 icon: '⚙️',
                 color: 'indigo',
               },
               {
                 role: 'Candidate',
-                email: 'demo@code7.com',
-                password: 'demo123',
+                email: 'candidate@example.com',
+                password: 'Candidate123!',
                 icon: '🧑‍💻',
                 color: 'purple',
               },
